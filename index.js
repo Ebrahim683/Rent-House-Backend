@@ -235,7 +235,7 @@ app.post('/bookHouse', (req, res) => {
                 uid = data.id;
                 userName = data.name;
 
-                const getHouseInfoQuery = `select * from owner_table_${owner_number}_${owner_name} where id = "${house_id}"`;
+                const getHouseInfoQuery = `select * from ${OWNER_TABLE} where id = "${house_id}"`;
                 db.query(getHouseInfoQuery, (error, result) => {
                     if (error) {
                         console.log(error);
@@ -258,25 +258,25 @@ app.post('/bookHouse', (req, res) => {
                             const address = data.address;
                             const notice = data.notice;
                             const status = data.status;
-                            const ownerTableId = data.owner_table_id;
+                            const houseId = data.house_id;
                             const time = data.time;
 
-                            const updateOwnerTableQuery = `update owner_table_${owner_number}_${owner_name} set status = 'booked' where id = ${house_id}`;
+                            const updateOwnerTableQuery = `update ${OWNER_TABLE} set status = 'booked' where id = ${house_id}`;
                             db.query(updateOwnerTableQuery, (error) => {
                                 if (error) {
                                     console.log(error);
                                     res.json({
                                         status: 'fail',
-                                        message: 'fail to update table 1'
+                                        message: 'fail to update owner table'
                                     });
                                 } else {
-                                    const updateAllOwnerTableQuery = `update ${OWNER_TABLE} set status = 'booked' where id = ${ownerTableId}`;
-                                    db.query(updateAllOwnerTableQuery, (error) => {
+                                    const updateSingleOwnerTableQuery = `update owner_table_${owner_number}_${owner_name} set status = 'booked' where id = ${houseId}`;
+                                    db.query(updateSingleOwnerTableQuery, (error) => {
                                         if (error) {
                                             console.log(error);
                                             res.json({
                                                 status: 'fail',
-                                                message: 'fail to update table 2'
+                                                message: 'fail to update table'
                                             })
                                         } else {
                                             const createBookTableQuery = `create table if not exists ${userNumber}_${userName}_booked_table(
@@ -328,7 +328,7 @@ app.post('/bookHouse', (req, res) => {
                                                         'others_fee': others_fee,
                                                         'address': address,
                                                         'notice': notice,
-                                                        'status': status,
+                                                        'status': 'booked',
                                                         'time': time,
                                                     }, (error) => {
                                                         if (error) {
@@ -387,7 +387,7 @@ app.post('/bookHouse', (req, res) => {
                                                                         'others_fee': others_fee,
                                                                         'address': address,
                                                                         'notice': notice,
-                                                                        'status': status,
+                                                                        'status': 'booked',
                                                                         'time': time,
                                                                     }, (error) => {
                                                                         if (error) {
@@ -405,7 +405,6 @@ app.post('/bookHouse', (req, res) => {
                                                                     });
                                                                 }
                                                             });
-
                                                         }
                                                     });
 
