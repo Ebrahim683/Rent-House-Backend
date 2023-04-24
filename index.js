@@ -42,7 +42,6 @@ db.connect((error) => {
 let sqlPhone = '';
 let sqlPassword = '';
 
-
 //home
 app.get('/', (req, res) => {
     res.json({
@@ -445,6 +444,89 @@ app.get('/showBookedHouse', (req, res) => {
     });
 });
 
+//send room leave request
+app.post('/leaveRoom', (req, res) => {
+    var ownerName = '';
+    var ownerNumber = '';
+
+    const id = req.query.id;
+    const userName = req.query.user_name;
+    const userNumber = req.query.user_number;
+
+    const getRoomInfo = `select * from ${userNumber}_${userName}_booked_table where id = ${id}`;
+    db.query(getRoomInfo, (error, result) => {
+        if (error) {
+            console.log(error);
+            res.json({
+                status: 'fail',
+                message: 'fail to get room info'
+            });
+        } else {
+            Object.keys(result).forEach((key) => {
+                const data = result[key];
+                const category = data.category;
+                const fee = data.fee;
+                const address = data.address;
+                const houseId = data.house_id;
+                ownerName = data.owner_name;
+                ownerNumber = data.owner_number;
+
+                const requestQuery = `create table if not exists leave_request_list_${ownerNumber}_${ownerName}(
+        id int(255) not null auto_increment primary key,
+        request_id int(255),
+        house_id int(255),
+        owner_name varchar (255),
+        owner_number varchar (255),
+        user_name varchar (255),
+        user_number varchar (255),
+        category varchar (255),
+        fee varchar (255),
+        address varchar (255)
+      );`;
+
+                db.query(requestQuery, (error) => {
+                    if (error) {
+                        console.log(error);
+                        res.json({
+                            status: 'fail',
+                            message: 'fail to send request'
+                        });
+                    } else {
+                        const addData = `insert into leave_request_list_${ownerNumber}_${ownerName} set ?`;
+                        db.query(addData, {
+                            request_id: id,
+                            house_id: houseId,
+                            owner_name: ownerName,
+                            owner_number: ownerNumber,
+                            user_name: userName,
+                            user_number: userNumber,
+                            category: category,
+                            fee: fee,
+                            address: address,
+                        }, (error) => {
+                            if (error) {
+                                console.log(error);
+                                res.json({
+                                    status: 'fail',
+                                    message: 'fail to add data'
+                                });
+                            } else {
+                                res.status(200).json({
+                                    status: 'success',
+                                    message: 'request sent'
+                                });
+                            }
+                        });
+                    }
+                });
+
+            });
+        }
+    });
+
+
+});
+
 // ===============================================================================================//
 //House owner
 
@@ -747,6 +829,77 @@ app.put('/owner/updateHouse', (req, res) => {
 
 });
 
+
+//get leave request
+app.get('/leaveRoomRequests', (req, res) => {
+    const ownerName = req.query.owner_name;
+    const ownerNumber = req.query.owner_number;
+
+    const getRequest = `select * from leave_request_list_${ownerNumber}_${ownerName}`;
+    db.query(getRequest, (error, result) => {
+        if (error) {
+            console.log(error);
+            res.json({
+                status: 'fail',
+                message: 'fail to get request list'
+            });
+        } else {
+            res.status(200).json({
+                status: 'success',
+                message: result
+            });
+        }
+    });
+});
+
+//approve request
+app.delete('/approveLeaveRoomRequest', (req, res) => {
+    const requestId = req.query.request_id;
+    const houseID = req.query.house_id;
+    const userName = req.query.user_name;
+    const userNumber = req.query.user_number;
+    const ownerName = req.query.owner_name;
+    const ownerNumber = req.query.owner_number;
+
+    const approveRequestQuery = `delete from leave_request_list_${ownerNumber}_${ownerName} where request_id = ${requestId}`;
+    db.query(approveRequestQuery, (error) => {
+        if (error) {
+            console.log(error);
+            res.json({
+                status: 'fail',
+                message: 'approve fail try again later'
+            });
+        } else {
+            const deleteFromUserQuery = `delete from ${userNumber}_${userName}_booked_table where house_id = ${houseID}`;
+            db.query(deleteFromUserQuery, (error) => {
+                if (error) {
+                    console.log(error);
+                    res.json({
+                        status: 'fail',
+                        message: 'fail to approve try again later'
+                    });
+                } else {
+                    const deleteFromOwnerQuery = `delete from owner_${ownerNumber}_${ownerName}_booked_room_list where house_id = ${houseID}`;
+                    db.query(deleteFromOwnerQuery, (error) => {
+                        if (error) {
+                            console.log(error);
+                            res.json({
+                                status: 'fail',
+                                message: 'fail to approve try again'
+                            });
+                        } else {
+                            res.status(200).json({
+                                status: 'success',
+                                message: 'approved'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    });
+
+});
 
 // ================================================================================================//
 // all user
