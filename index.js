@@ -197,7 +197,8 @@ app.post('/login', (req, res) => {
             if (match && phone_number == sqlPhone) {
                 res.status(200).json({
                     status: 'success',
-                    message: result,
+                    message: 'login successful',
+                    data: result,
                 });
             } else {
                 res.json({
@@ -438,7 +439,8 @@ app.get('/showBookedHouse', (req, res) => {
         } else {
             res.status(200).json({
                 status: 'success',
-                message: result
+                message: 'booked house loaded',
+                data: result
             });
         }
     });
@@ -717,7 +719,8 @@ app.get('/owner/showOwnerHouse', (req, res) => {
         } else {
             res.status(200).json({
                 status: 'success',
-                message: result
+                message: 'owner house loaded',
+                data: result
             });
         }
     });
@@ -739,7 +742,8 @@ app.get('/owner/showBookedHouse', (req, res) => {
         } else {
             res.status(200).json({
                 status: 'success',
-                message: result
+                message: 'owners booked house loaded',
+                data: result,
             });
         }
     });
@@ -831,7 +835,7 @@ app.put('/owner/updateHouse', (req, res) => {
 
 
 //get leave request
-app.get('/leaveRoomRequests', (req, res) => {
+app.get('/owner/leaveRoomRequests', (req, res) => {
     const ownerName = req.query.owner_name;
     const ownerNumber = req.query.owner_number;
 
@@ -846,14 +850,15 @@ app.get('/leaveRoomRequests', (req, res) => {
         } else {
             res.status(200).json({
                 status: 'success',
-                message: result
+                message: 'leaved room',
+                data: result,
             });
         }
     });
 });
 
 //approve request
-app.delete('/approveLeaveRoomRequest', (req, res) => {
+app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
     const requestId = req.query.request_id;
     const houseID = req.query.house_id;
     const userName = req.query.user_name;
@@ -919,7 +924,8 @@ app.get('/profile', (req, res) => {
         } else {
             res.status(200).json({
                 status: 'success',
-                message: result,
+                message: 'user profile loaded',
+                data: result
             });
         }
     });
@@ -939,7 +945,8 @@ app.get('/getHouse', (req, res) => {
         } else {
             res.status(200).json({
                 status: 'success',
-                message: result
+                message: 'house loaded',
+                data: result
             });
         }
     });
