@@ -12,14 +12,24 @@ const OWNER_TABLE = 'owner_table';
 //import library
 const express = require('express');
 const mysql = require('mysql');
-const jsonwebtoken = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const bcryptjs = require('bcryptjs');
 const { reset } = require('nodemon');
+const bodyParser = require('body-parser');
+const multer = require('multer');
+const path = require('path');
+const { error, log } = require('console');
+
 
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({
+    extended: true
+}));
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({
+    extended: true
+}));
 
 //create database
 const db = mysql.createConnection({
@@ -41,6 +51,7 @@ db.connect((error) => {
 //variables
 let sqlPhone = '';
 let sqlPassword = '';
+
 
 //home
 app.get('/', (req, res) => {
@@ -206,6 +217,27 @@ app.post('/login', (req, res) => {
                     message: 'invalid credential',
                 });
             }
+        }
+    });
+
+});
+
+app.get('/getHouse', (req, res) => {
+    const category = req.query.category;
+    const getHouseQuery = `select * from ${OWNER_TABLE} where category="${category.toLowerCase()}"`;
+    db.query(getHouseQuery, (error, result) => {
+        if (error) {
+            console.log(error);
+            res.json({
+                status: 'fail',
+                message: 'Fail to get houses'
+            });
+        } else {
+            res.status(200).json({
+                status: 'success',
+                message: 'house loaded',
+                data: result
+            });
         }
     });
 
@@ -422,7 +454,6 @@ app.post('/bookHouse', (req, res) => {
     });
 });
 
-
 //show booked house
 app.get('/showBookedHouse', (req, res) => {
     const phoneNumber = req.query.phone_number;
@@ -533,11 +564,12 @@ app.post('/leaveRoom', (req, res) => {
 //House owner
 
 //add house
+app.use('/image', express.static('upload/images/'));
 app.post('/owner/addHouse', (req, res) => {
     var ownerName = '';
     var uid = '';
+    let image;
     const ownerNumber = req.query.owner_number;
-    const image = req.query.image;
     const category = req.query.category;
     const fee = req.query.fee;
     const quantity = req.query.quantity;
@@ -559,12 +591,33 @@ app.post('/owner/addHouse', (req, res) => {
                 message: 'fail to get owner info'
             });
         } else {
-            Object.keys(result).forEach((key) => {
-                const data = result[key];
-                ownerName = data.name;
-                uid = data.id;
-                //add house into single owners
-                const createSingleOwnerTableQuery = `create table if not exists ${DATABASE}.${OWNER_TABLE}_${ownerNumber}_${ownerName}(
+
+            let imageName;
+            var storage = multer.diskStorage({
+                destination: './upload/images',
+                filename: function (req, file, callBack) {
+                    imageName = file.fieldname;
+                    callBack(null, `${imageName}_${Date.now()}${path.extname(file.originalname)}`);
+
+                },
+            });
+
+            var upload = multer({ storage: storage }).single('image');
+            upload(req, res, (error) => {
+                if (error) {
+                    console.log(error);
+                    res.json({
+                        status: 'fail',
+                        message: 'fail to upload image'
+                    });
+                } else {
+                    image = `http://localhost:5000/image/${req.file.filename}`;
+                    Object.keys(result).forEach((key) => {
+                        const data = result[key];
+                        ownerName = data.name;
+                        uid = data.id;
+                        //add house into single owners
+                        const createSingleOwnerTableQuery = `create table if not exists ${DATABASE}.${OWNER_TABLE}_${ownerNumber}_${ownerName}(
         id int(255) not null auto_increment,
         owner_name varchar(255),
         owner_number varchar(255),
@@ -584,53 +637,53 @@ app.post('/owner/addHouse', (req, res) => {
         primary key(id)
     );`;
 
-                db.query(createSingleOwnerTableQuery, (error) => {
-                    if (error) {
-                        console.log(error);
-                        res.json({
-                            status: 'fail',
-                            message: 'Fail to create your house'
-                        });
-                    } else {
-                        const addHouseQuery = `insert into ${OWNER_TABLE}_${ownerNumber}_${ownerName} set?`;
-                        db.query(addHouseQuery, {
-                            owner_name: ownerName,
-                            owner_number: ownerNumber,
-                            owner_id: uid,
-                            image: image,
-                            category: category,
-                            fee: fee,
-                            quantity: quantity,
-                            advance_fee: advanceFee,
-                            electricity_fee: electricityFee,
-                            gas_fee: gasFee,
-                            others_fee: othersFee,
-                            address: address,
-                            notice: notice,
-                            status: status,
-                            time: time,
-                        }, (error) => {
+                        db.query(createSingleOwnerTableQuery, (error) => {
                             if (error) {
                                 console.log(error);
                                 res.json({
                                     status: 'fail',
-                                    message: 'fail to add house'
+                                    message: 'Fail to create your house'
                                 });
                             } else {
-                                const getHouseId = `select * from ${OWNER_TABLE}_${ownerNumber}_${ownerName} where time = ${time}`;
-                                db.query(getHouseId, (error, result) => {
+                                const addHouseQuery = `insert into ${OWNER_TABLE}_${ownerNumber}_${ownerName} set?`;
+                                db.query(addHouseQuery, {
+                                    owner_name: ownerName,
+                                    owner_number: ownerNumber,
+                                    owner_id: uid,
+                                    image: image,
+                                    category: category,
+                                    fee: fee,
+                                    quantity: quantity,
+                                    advance_fee: advanceFee,
+                                    electricity_fee: electricityFee,
+                                    gas_fee: gasFee,
+                                    others_fee: othersFee,
+                                    address: address,
+                                    notice: notice,
+                                    status: status,
+                                    time: time,
+                                }, (error) => {
                                     if (error) {
                                         console.log(error);
                                         res.json({
                                             status: 'fail',
-                                            message: 'fail to get house id'
+                                            message: 'fail to add house'
                                         });
                                     } else {
-                                        Object.keys(result).forEach((key) => {
-                                            const data = result[key];
-                                            var houseID = data.id;
-                                            //save all owners houses
-                                            const allOwnersHouseQuery = `create table if not exists ${DATABASE}.${OWNER_TABLE}(
+                                        const getHouseId = `select * from ${OWNER_TABLE}_${ownerNumber}_${ownerName} where time = ${time}`;
+                                        db.query(getHouseId, (error, result) => {
+                                            if (error) {
+                                                console.log(error);
+                                                res.json({
+                                                    status: 'fail',
+                                                    message: 'fail to get house id'
+                                                });
+                                            } else {
+                                                Object.keys(result).forEach((key) => {
+                                                    const data = result[key];
+                                                    var houseID = data.id;
+                                                    //save all owners houses
+                                                    const allOwnersHouseQuery = `create table if not exists ${DATABASE}.${OWNER_TABLE}(
         id int(255) not null auto_increment primary key,
         owner_name varchar(255),
         owner_id int(255),
@@ -650,55 +703,57 @@ app.post('/owner/addHouse', (req, res) => {
         time varchar(255)        
         );`;
 
-                                            db.query(allOwnersHouseQuery, (error) => {
-                                                if (error) {
-                                                    console.log(error);
-                                                    res.json({
-                                                        status: 'fail',
-                                                        message: 'Fail to cerate all owners house table'
-                                                    });
-                                                } else {
-                                                    const addAllOwnersHouseQuery = `insert into ${OWNER_TABLE} set?`;
-                                                    db.query(addAllOwnersHouseQuery, {
-                                                        owner_name: ownerName,
-                                                        owner_id: uid,
-                                                        owner_number: ownerNumber,
-                                                        image: image,
-                                                        category: category,
-                                                        fee: fee,
-                                                        quantity: quantity,
-                                                        advance_fee: advanceFee,
-                                                        electricity_fee: electricityFee,
-                                                        gas_fee: gasFee,
-                                                        others_fee: othersFee,
-                                                        address: address,
-                                                        notice: notice,
-                                                        status: status,
-                                                        house_id: houseID,
-                                                        time: time,
-                                                    }, (error) => {
+                                                    db.query(allOwnersHouseQuery, (error) => {
                                                         if (error) {
                                                             console.log(error);
                                                             res.json({
                                                                 status: 'fail',
-                                                                message: 'Fail to insert all owners house table'
+                                                                message: 'Fail to cerate all owners house table'
                                                             });
                                                         } else {
-                                                            res.status(200).json({
-                                                                status: 'success',
-                                                                message: 'house inserted'
+                                                            const addAllOwnersHouseQuery = `insert into ${OWNER_TABLE} set?`;
+                                                            db.query(addAllOwnersHouseQuery, {
+                                                                owner_name: ownerName,
+                                                                owner_id: uid,
+                                                                owner_number: ownerNumber,
+                                                                image: image,
+                                                                category: category,
+                                                                fee: fee,
+                                                                quantity: quantity,
+                                                                advance_fee: advanceFee,
+                                                                electricity_fee: electricityFee,
+                                                                gas_fee: gasFee,
+                                                                others_fee: othersFee,
+                                                                address: address,
+                                                                notice: notice,
+                                                                status: status,
+                                                                house_id: houseID,
+                                                                time: time,
+                                                            }, (error) => {
+                                                                if (error) {
+                                                                    console.log(error);
+                                                                    res.json({
+                                                                        status: 'fail',
+                                                                        message: 'Fail to insert all owners house table'
+                                                                    });
+                                                                } else {
+                                                                    res.status(200).json({
+                                                                        status: 'success',
+                                                                        message: 'house inserted'
+                                                                    });
+                                                                }
                                                             });
                                                         }
                                                     });
-                                                }
-                                            });
+                                                });
+                                            }
                                         });
                                     }
                                 });
                             }
                         });
-                    }
-                });
+                    });
+                }
             });
         }
     });
@@ -752,7 +807,7 @@ app.get('/owner/showBookedHouse', (req, res) => {
 
 //update house
 app.put('/owner/updateHouse', (req, res) => {
-    var ownerTableHouseId = '';
+
     const houseId = req.query.house_id;
     const ownerName = req.query.owner_name;
     const ownerNumber = req.query.owner_number;
@@ -778,7 +833,7 @@ app.put('/owner/updateHouse', (req, res) => {
         } else {
             Object.keys(result).forEach((key) => {
                 const data = result[key];
-                ownerTableHouseId = data.owner_table_id;
+                const time = data.time;
                 const updateHouseSingle = `update ${OWNER_TABLE}_${ownerNumber}_${ownerName} set? where id=${houseId}`;
                 db.query(updateHouseSingle, {
                     category: category,
@@ -799,7 +854,7 @@ app.put('/owner/updateHouse', (req, res) => {
                             message: 'fail to update house single'
                         });
                     } else {
-                        const updateHouse = `update ${OWNER_TABLE} set? where id=${ownerTableHouseId}`;
+                        const updateHouse = `update ${OWNER_TABLE} set? where time=${time}`;
                         db.query(updateHouse, {
                             category: category,
                             fee: fee,
@@ -906,6 +961,54 @@ app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
 
 });
 
+// app.use('/image', express.static('upload/images/'));
+// app.post('/owner/photo', (req, res) => {
+//     let imageName;
+//     let imageLink;
+//     var storage = multer.diskStorage({
+//         destination: './upload/images',
+//         filename: function (req, file, callBack) {
+//             imageName = file.fieldname;
+//             callBack(null, `${imageName}_${Date.now()}${path.extname(file.originalname)}`);
+
+//         },
+//     });
+
+//     var upload = multer({ storage: storage }).single('image');
+//     upload(req, res, (error) => {
+//         if (error) {
+//             console.log(error);
+//             res.json({
+//                 status: 'fail',
+//                 message: 'fail to upload image'
+//             });
+//         } else {
+//             imageLink = `http://localhost:5000/image/${req.file.filename}`;
+//             const q = `insert into test set?`;
+//             db.query(q, { image: imageLink }, (error) => {
+//                 if (error) {
+//                     console.log(error);
+//                     res.send('error');
+//                 } else {
+//                     res.send(imageLink);
+//                 }
+//             });
+//         }
+//     });
+// });
+
+// app.get('/owner/photo', (req, res) => {
+//     const q = `select * from test`;
+//     db.query(q, (error, result) => {
+//         if (error) {
+//             console.log(error);
+//             res.send('error');
+//         } else {
+//             res.send(result);
+//         }
+//     });
+// });
+
 // ================================================================================================//
 // all user
 
@@ -932,26 +1035,7 @@ app.get('/profile', (req, res) => {
 });
 
 //get house
-app.get('/getHouse', (req, res) => {
-    const category = req.query.category;
-    const getHouseQuery = `select * from ${OWNER_TABLE} where category="${category.toLowerCase()}"`;
-    db.query(getHouseQuery, (error, result) => {
-        if (error) {
-            console.log(error);
-            res.json({
-                status: 'fail',
-                message: 'Fail to get houses'
-            });
-        } else {
-            res.status(200).json({
-                status: 'success',
-                message: 'house loaded',
-                data: result
-            });
-        }
-    });
 
-});
 
 //listen port
 app.listen(PROT, () => {
