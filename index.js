@@ -568,7 +568,10 @@ app.use('/image', express.static('upload/images/'));
 app.post('/owner/addHouse', (req, res) => {
     var ownerName = '';
     var uid = '';
-    let image;
+    let image1;
+    let image2;
+    let image3;
+    let image4;
     const ownerNumber = req.query.owner_number;
     const category = req.query.category;
     const fee = req.query.fee;
@@ -602,7 +605,7 @@ app.post('/owner/addHouse', (req, res) => {
                 },
             });
 
-            var upload = multer({ storage: storage }).single('image');
+            var upload = multer({ storage: storage }).array('image', 4);
             upload(req, res, (error) => {
                 if (error) {
                     console.log(error);
@@ -611,7 +614,11 @@ app.post('/owner/addHouse', (req, res) => {
                         message: 'fail to upload image'
                     });
                 } else {
-                    image = `http://localhost:5000/image/${req.file.filename}`;
+                    image1 = `http://localhost:5000/image/${req.files[0].filename}`;
+                    image2 = `http://localhost:5000/image/${req.files[1].filename}`;
+                    image3 = `http://localhost:5000/image/${req.files[2].filename}`;
+                    image4 = `http://localhost:5000/image/${req.files[3].filename}`;
+
                     Object.keys(result).forEach((key) => {
                         const data = result[key];
                         ownerName = data.name;
@@ -622,7 +629,10 @@ app.post('/owner/addHouse', (req, res) => {
         owner_name varchar(255),
         owner_number varchar(255),
         owner_id int(255),
-        image varchar(255),
+        image1 varchar(255),
+        image2 varchar(255),
+        image3 varchar(255),
+        image4 varchar(255),
         category varchar(255),
         fee varchar(255),
         quantity varchar(255),
@@ -650,7 +660,10 @@ app.post('/owner/addHouse', (req, res) => {
                                     owner_name: ownerName,
                                     owner_number: ownerNumber,
                                     owner_id: uid,
-                                    image: image,
+                                    image1: image1,
+                                    image2: image2,
+                                    image3: image3,
+                                    image4: image4,
                                     category: category,
                                     fee: fee,
                                     quantity: quantity,
@@ -688,7 +701,10 @@ app.post('/owner/addHouse', (req, res) => {
         owner_name varchar(255),
         owner_id int(255),
         owner_number varchar(255),
-        image varchar(255),
+        image1 varchar(255),
+        image2 varchar(255),
+        image3 varchar(255),
+        image4 varchar(255),
         category varchar(255),
         fee varchar(255),
         quantity varchar(255),
@@ -716,7 +732,10 @@ app.post('/owner/addHouse', (req, res) => {
                                                                 owner_name: ownerName,
                                                                 owner_id: uid,
                                                                 owner_number: ownerNumber,
-                                                                image: image,
+                                                                image1: image1,
+                                                                image2: image2,
+                                                                image3: image3,
+                                                                image4: image4,
                                                                 category: category,
                                                                 fee: fee,
                                                                 quantity: quantity,
@@ -961,53 +980,61 @@ app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
 
 });
 
-// app.use('/image', express.static('upload/images/'));
-// app.post('/owner/photo', (req, res) => {
-//     let imageName;
-//     let imageLink;
-//     var storage = multer.diskStorage({
-//         destination: './upload/images',
-//         filename: function (req, file, callBack) {
-//             imageName = file.fieldname;
-//             callBack(null, `${imageName}_${Date.now()}${path.extname(file.originalname)}`);
+app.use('/image', express.static('upload/images/'));
+app.post('/owner/photo', (req, res) => {
+    let imageName;
+    let imageLink1;
+    let imageLink2;
+    let imageLink3;
+    let imageLink4;
+    var storage = multer.diskStorage({
+        destination: './upload/images',
+        filename: function (req, file, callBack) {
+            imageName = file.fieldname;
+            callBack(null, `${imageName}_${Date.now()}${path.extname(file.originalname)}`);
 
-//         },
-//     });
+        },
+    });
 
-//     var upload = multer({ storage: storage }).single('image');
-//     upload(req, res, (error) => {
-//         if (error) {
-//             console.log(error);
-//             res.json({
-//                 status: 'fail',
-//                 message: 'fail to upload image'
-//             });
-//         } else {
-//             imageLink = `http://localhost:5000/image/${req.file.filename}`;
-//             const q = `insert into test set?`;
-//             db.query(q, { image: imageLink }, (error) => {
-//                 if (error) {
-//                     console.log(error);
-//                     res.send('error');
-//                 } else {
-//                     res.send(imageLink);
-//                 }
-//             });
-//         }
-//     });
-// });
+    var upload = multer({ storage: storage }).array('image', 4);
+    upload(req, res, (error) => {
+        if (error) {
+            console.log(error);
+            res.json({
+                status: 'fail',
+                message: 'fail to upload image'
+            });
+        } else {
+            imageLink1 = `http://localhost:5000/image/${req.files[0].filename}`;
+            imageLink2 = `http://localhost:5000/image/${req.files[1].filename}`;
+            imageLink3 = `http://localhost:5000/image/${req.files[2].filename}`;
+            imageLink4 = `http://localhost:5000/image/${req.files[3].filename}`;
+            const images = [imageLink1, imageLink2, imageLink3, imageLink4];
 
-// app.get('/owner/photo', (req, res) => {
-//     const q = `select * from test`;
-//     db.query(q, (error, result) => {
-//         if (error) {
-//             console.log(error);
-//             res.send('error');
-//         } else {
-//             res.send(result);
-//         }
-//     });
-// });
+            const q = `insert into test set?`;
+            db.query(q, { image1: images[0], image2: images[1], image3: images[2], image4: images[3] }, (error) => {
+                if (error) {
+                    console.log(error);
+                    res.send('error');
+                } else {
+                    res.send('success');
+                }
+            });
+        }
+    });
+});
+
+app.get('/owner/photo', (req, res) => {
+    const q = `select * from test`;
+    db.query(q, (error, result) => {
+        if (error) {
+            console.log(error);
+            res.send('error');
+        } else {
+            res.send(result);
+        }
+    });
+});
 
 // ================================================================================================//
 // all user
