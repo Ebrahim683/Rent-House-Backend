@@ -1,3 +1,5 @@
+//url
+const BASE_URL = 'http://localhost:5000'
 //server information
 const PROT = 5000;
 //database information
@@ -31,6 +33,23 @@ app.use(bodyParser.urlencoded({
     extended: true
 }));
 
+var storage = multer.diskStorage({
+    destination: function (req, file, callBack) {
+        if (file.fieldname == 'image') {
+            callBack(null, './upload/images/');
+        } else if (file.fieldname == 'video') {
+            callBack(null, './upload/videos/');
+        }
+    },
+    filename: function (req, file, callBack) {
+        callBack(null, `${file.fieldname}_${Date.now()}${path.extname(file.originalname)}`);
+    },
+});
+
+var upload = multer({ storage: storage });
+
+app.use('/image', express.static('upload/images/'));
+app.use('/video', express.static('upload/videos/'));
 //create database
 const db = mysql.createConnection({
     host: HOST,
@@ -564,14 +583,17 @@ app.post('/leaveRoom', (req, res) => {
 //House owner
 
 //add house
-app.use('/image', express.static('upload/images/'));
-app.post('/owner/addHouse', (req, res) => {
+app.post('/owner/addHouse', upload.fields([
+    { name: 'image', maxCount: 4 },
+    { name: 'video', maxCount: 1 },
+]), (req, res) => {
     var ownerName = '';
     var uid = '';
     let image1;
     let image2;
     let image3;
     let image4;
+    let videoLink;
     const ownerNumber = req.query.owner_number;
     const category = req.query.category;
     const fee = req.query.fee;
@@ -594,37 +616,18 @@ app.post('/owner/addHouse', (req, res) => {
                 message: 'fail to get owner info'
             });
         } else {
+            image1 = `${BASE_URL}/image/${req.files['image'][0].filename}`;
+            image2 = `${BASE_URL}/image/${req.files['image'][1].filename}`;
+            image3 = `${BASE_URL}/image/${req.files['image'][2].filename}`;
+            image4 = `${BASE_URL}/image/${req.files['image'][3].filename}`;
+            videoLink = `${BASE_URL}/video/${req.files['video'][0].filename}`;
 
-            let imageName;
-            var storage = multer.diskStorage({
-                destination: './upload/images',
-                filename: function (req, file, callBack) {
-                    imageName = file.fieldname;
-                    callBack(null, `${imageName}_${Date.now()}${path.extname(file.originalname)}`);
-
-                },
-            });
-
-            var upload = multer({ storage: storage }).array('image', 4);
-            upload(req, res, (error) => {
-                if (error) {
-                    console.log(error);
-                    res.json({
-                        status: 'fail',
-                        message: 'fail to upload image'
-                    });
-                } else {
-                    image1 = `http://localhost:5000/image/${req.files[0].filename}`;
-                    image2 = `http://localhost:5000/image/${req.files[1].filename}`;
-                    image3 = `http://localhost:5000/image/${req.files[2].filename}`;
-                    image4 = `http://localhost:5000/image/${req.files[3].filename}`;
-
-                    Object.keys(result).forEach((key) => {
-                        const data = result[key];
-                        ownerName = data.name;
-                        uid = data.id;
-                        //add house into single owners
-                        const createSingleOwnerTableQuery = `create table if not exists ${DATABASE}.${OWNER_TABLE}_${ownerNumber}_${ownerName}(
+            Object.keys(result).forEach((key) => {
+                const data = result[key];
+                ownerName = data.name;
+                uid = data.id;
+                //add house into single owners
+                const createSingleOwnerTableQuery = `create table if not exists ${DATABASE}.${OWNER_TABLE}_${ownerNumber}_${ownerName}(
         id int(255) not null auto_increment,
         owner_name varchar(255),
         owner_number varchar(255),
@@ -633,6 +636,7 @@ app.post('/owner/addHouse', (req, res) => {
         image2 varchar(255),
         image3 varchar(255),
         image4 varchar(255),
+        video varchar(255),
         category varchar(255),
         fee varchar(255),
         quantity varchar(255),
@@ -647,56 +651,57 @@ app.post('/owner/addHouse', (req, res) => {
         primary key(id)
     );`;
 
-                        db.query(createSingleOwnerTableQuery, (error) => {
+                db.query(createSingleOwnerTableQuery, (error) => {
+                    if (error) {
+                        console.log(error);
+                        res.json({
+                            status: 'fail',
+                            message: 'Fail to create your house'
+                        });
+                    } else {
+                        const addHouseQuery = `insert into ${OWNER_TABLE}_${ownerNumber}_${ownerName} set?`;
+                        db.query(addHouseQuery, {
+                            owner_name: ownerName,
+                            owner_number: ownerNumber,
+                            owner_id: uid,
+                            image1: image1,
+                            image2: image2,
+                            image3: image3,
+                            image4: image4,
+                            video: videoLink,
+                            category: category,
+                            fee: fee,
+                            quantity: quantity,
+                            advance_fee: advanceFee,
+                            electricity_fee: electricityFee,
+                            gas_fee: gasFee,
+                            others_fee: othersFee,
+                            address: address,
+                            notice: notice,
+                            status: status,
+                            time: time,
+                        }, (error) => {
                             if (error) {
                                 console.log(error);
                                 res.json({
                                     status: 'fail',
-                                    message: 'Fail to create your house'
+                                    message: 'fail to add house'
                                 });
                             } else {
-                                const addHouseQuery = `insert into ${OWNER_TABLE}_${ownerNumber}_${ownerName} set?`;
-                                db.query(addHouseQuery, {
-                                    owner_name: ownerName,
-                                    owner_number: ownerNumber,
-                                    owner_id: uid,
-                                    image1: image1,
-                                    image2: image2,
-                                    image3: image3,
-                                    image4: image4,
-                                    category: category,
-                                    fee: fee,
-                                    quantity: quantity,
-                                    advance_fee: advanceFee,
-                                    electricity_fee: electricityFee,
-                                    gas_fee: gasFee,
-                                    others_fee: othersFee,
-                                    address: address,
-                                    notice: notice,
-                                    status: status,
-                                    time: time,
-                                }, (error) => {
+                                const getHouseId = `select * from ${OWNER_TABLE}_${ownerNumber}_${ownerName} where time = ${time}`;
+                                db.query(getHouseId, (error, result) => {
                                     if (error) {
                                         console.log(error);
                                         res.json({
                                             status: 'fail',
-                                            message: 'fail to add house'
+                                            message: 'fail to get house id'
                                         });
                                     } else {
-                                        const getHouseId = `select * from ${OWNER_TABLE}_${ownerNumber}_${ownerName} where time = ${time}`;
-                                        db.query(getHouseId, (error, result) => {
-                                            if (error) {
-                                                console.log(error);
-                                                res.json({
-                                                    status: 'fail',
-                                                    message: 'fail to get house id'
-                                                });
-                                            } else {
-                                                Object.keys(result).forEach((key) => {
-                                                    const data = result[key];
-                                                    var houseID = data.id;
-                                                    //save all owners houses
-                                                    const allOwnersHouseQuery = `create table if not exists ${DATABASE}.${OWNER_TABLE}(
+                                        Object.keys(result).forEach((key) => {
+                                            const data = result[key];
+                                            var houseID = data.id;
+                                            //save all owners houses
+                                            const allOwnersHouseQuery = `create table if not exists ${DATABASE}.${OWNER_TABLE}(
         id int(255) not null auto_increment primary key,
         owner_name varchar(255),
         owner_id int(255),
@@ -705,6 +710,7 @@ app.post('/owner/addHouse', (req, res) => {
         image2 varchar(255),
         image3 varchar(255),
         image4 varchar(255),
+        video varchar(255),
         category varchar(255),
         fee varchar(255),
         quantity varchar(255),
@@ -719,60 +725,59 @@ app.post('/owner/addHouse', (req, res) => {
         time varchar(255)        
         );`;
 
-                                                    db.query(allOwnersHouseQuery, (error) => {
+                                            db.query(allOwnersHouseQuery, (error) => {
+                                                if (error) {
+                                                    console.log(error);
+                                                    res.json({
+                                                        status: 'fail',
+                                                        message: 'Fail to cerate all owners house table'
+                                                    });
+                                                } else {
+                                                    const addAllOwnersHouseQuery = `insert into ${OWNER_TABLE} set?`;
+                                                    db.query(addAllOwnersHouseQuery, {
+                                                        owner_name: ownerName,
+                                                        owner_id: uid,
+                                                        owner_number: ownerNumber,
+                                                        image1: image1,
+                                                        image2: image2,
+                                                        image3: image3,
+                                                        image4: image4,
+                                                        video: videoLink,
+                                                        category: category,
+                                                        fee: fee,
+                                                        quantity: quantity,
+                                                        advance_fee: advanceFee,
+                                                        electricity_fee: electricityFee,
+                                                        gas_fee: gasFee,
+                                                        others_fee: othersFee,
+                                                        address: address,
+                                                        notice: notice,
+                                                        status: status,
+                                                        house_id: houseID,
+                                                        time: time,
+                                                    }, (error) => {
                                                         if (error) {
                                                             console.log(error);
                                                             res.json({
                                                                 status: 'fail',
-                                                                message: 'Fail to cerate all owners house table'
+                                                                message: 'Fail to insert all owners house table'
                                                             });
                                                         } else {
-                                                            const addAllOwnersHouseQuery = `insert into ${OWNER_TABLE} set?`;
-                                                            db.query(addAllOwnersHouseQuery, {
-                                                                owner_name: ownerName,
-                                                                owner_id: uid,
-                                                                owner_number: ownerNumber,
-                                                                image1: image1,
-                                                                image2: image2,
-                                                                image3: image3,
-                                                                image4: image4,
-                                                                category: category,
-                                                                fee: fee,
-                                                                quantity: quantity,
-                                                                advance_fee: advanceFee,
-                                                                electricity_fee: electricityFee,
-                                                                gas_fee: gasFee,
-                                                                others_fee: othersFee,
-                                                                address: address,
-                                                                notice: notice,
-                                                                status: status,
-                                                                house_id: houseID,
-                                                                time: time,
-                                                            }, (error) => {
-                                                                if (error) {
-                                                                    console.log(error);
-                                                                    res.json({
-                                                                        status: 'fail',
-                                                                        message: 'Fail to insert all owners house table'
-                                                                    });
-                                                                } else {
-                                                                    res.status(200).json({
-                                                                        status: 'success',
-                                                                        message: 'house inserted'
-                                                                    });
-                                                                }
+                                                            res.status(200).json({
+                                                                status: 'success',
+                                                                message: 'house inserted'
                                                             });
                                                         }
                                                     });
-                                                });
-                                            }
+                                                }
+                                            });
                                         });
                                     }
                                 });
                             }
                         });
-                    });
-                }
+                    }
+                });
             });
         }
     });
@@ -980,48 +985,24 @@ app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
 
 });
 
-app.use('/image', express.static('upload/images/'));
-app.post('/owner/photo', (req, res) => {
-    let imageName;
+
+app.post('/owner/photo', upload.fields([
+    { name: 'image', maxCount: 4 },
+    { name: 'video', maxCount: 1 },
+]), (req, res) => {
     let imageLink1;
     let imageLink2;
     let imageLink3;
     let imageLink4;
-    var storage = multer.diskStorage({
-        destination: './upload/images',
-        filename: function (req, file, callBack) {
-            imageName = file.fieldname;
-            callBack(null, `${imageName}_${Date.now()}${path.extname(file.originalname)}`);
+    let videoLink;
 
-        },
-    });
+    imageLink1 = req.files['image'][0].filename;
+    imageLink2 = req.files['image'][1].filename;
+    imageLink3 = req.files['image'][2].filename;
+    imageLink4 = req.files['image'][3].filename;
+    videoLink = req.files['video'][0].filename;
+    res.send(videoLink);
 
-    var upload = multer({ storage: storage }).array('image', 4);
-    upload(req, res, (error) => {
-        if (error) {
-            console.log(error);
-            res.json({
-                status: 'fail',
-                message: 'fail to upload image'
-            });
-        } else {
-            imageLink1 = `http://localhost:5000/image/${req.files[0].filename}`;
-            imageLink2 = `http://localhost:5000/image/${req.files[1].filename}`;
-            imageLink3 = `http://localhost:5000/image/${req.files[2].filename}`;
-            imageLink4 = `http://localhost:5000/image/${req.files[3].filename}`;
-            const images = [imageLink1, imageLink2, imageLink3, imageLink4];
-
-            const q = `insert into test set?`;
-            db.query(q, { image1: images[0], image2: images[1], image3: images[2], image4: images[3] }, (error) => {
-                if (error) {
-                    console.log(error);
-                    res.send('error');
-                } else {
-                    res.send('success');
-                }
-            });
-        }
-    });
 });
 
 app.get('/owner/photo', (req, res) => {
