@@ -42,7 +42,7 @@ var storage = multer.diskStorage({
         }
     },
     filename: function (req, file, callBack) {
-        callBack(null, `${file.fieldname}_${Date.now()}${path.extname(file.originalname)}`);
+        callBack(null, `${file.fieldname}_${file.originalname}_${Date.now()}${path.extname(file.originalname)}`);
     },
 });
 
