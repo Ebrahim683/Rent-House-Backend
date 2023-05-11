@@ -312,7 +312,7 @@ app.post('/bookHouse', (req, res) => {
                             const houseId = data.house_id;
                             const time = data.time;
 
-                            const updateOwnerTableQuery = `update ${OWNER_TABLE} set status = 'booked' where id = ${house_id}`;
+                            const updateOwnerTableQuery = `update ${OWNER_TABLE} set status = 'booked', can_book = 'false' where id = ${house_id}`;
                             db.query(updateOwnerTableQuery, (error) => {
                                 if (error) {
                                     console.log(error);
@@ -321,7 +321,7 @@ app.post('/bookHouse', (req, res) => {
                                         message: 'fail to update owner table'
                                     });
                                 } else {
-                                    const updateSingleOwnerTableQuery = `update owner_table_${owner_number}_${owner_name} set status = 'booked' where id = ${houseId}`;
+                                    const updateSingleOwnerTableQuery = `update owner_table_${owner_number}_${owner_name} set status = 'booked', can_book = 'false' where id = ${houseId}`;
                                     db.query(updateSingleOwnerTableQuery, (error) => {
                                         if (error) {
                                             console.log(error);
@@ -339,7 +339,6 @@ app.post('/bookHouse', (req, res) => {
                                                  user_id int (255),
                                                  user_name varchar (255),
                                                  user_number varchar (255),
-                                                 image varchar (255),
                                                  category varchar (255),
                                                  fee varchar (255),
                                                  quantity varchar (255),
@@ -350,6 +349,7 @@ app.post('/bookHouse', (req, res) => {
                                                  address varchar (255),
                                                  notice varchar (255),
                                                  status varchar (255),
+                                                 can_book varchar(255),
                                                  time varchar (255)
                                                  );`;
                                             db.query(createBookTableQuery, (error) => {
@@ -369,7 +369,6 @@ app.post('/bookHouse', (req, res) => {
                                                         'user_id': uid,
                                                         'user_name': userName,
                                                         'user_number': userNumber,
-                                                        'image': image,
                                                         'category': category,
                                                         'fee': fee,
                                                         'quantity': quantity,
@@ -380,6 +379,7 @@ app.post('/bookHouse', (req, res) => {
                                                         'address': address,
                                                         'notice': notice,
                                                         'status': 'booked',
+                                                        'can_book': 'false',
                                                         'time': time,
                                                     }, (error) => {
                                                         if (error) {
@@ -398,7 +398,6 @@ app.post('/bookHouse', (req, res) => {
                                                                 user_id int (255),
                                                                 user_name varchar (255),
                                                                 user_number varchar (255),
-                                                                image varchar (255),
                                                                 category varchar (255),
                                                                 fee varchar (255),
                                                                 quantity varchar (255),
@@ -409,6 +408,7 @@ app.post('/bookHouse', (req, res) => {
                                                                 address varchar (255),
                                                                 notice varchar (255),
                                                                 status varchar (255),
+                                                                can_book varchar (255),
                                                                 time varchar (255)
                                                                 );`;
                                                             db.query(createSetBookedRoomToOwnerQuery, (error) => {
@@ -428,7 +428,6 @@ app.post('/bookHouse', (req, res) => {
                                                                         'user_id': uid,
                                                                         'user_name': userName,
                                                                         'user_number': userNumber,
-                                                                        'image': image,
                                                                         'category': category,
                                                                         'fee': fee,
                                                                         'quantity': quantity,
@@ -439,6 +438,7 @@ app.post('/bookHouse', (req, res) => {
                                                                         'address': address,
                                                                         'notice': notice,
                                                                         'status': 'booked',
+                                                                        'can_book': 'false',
                                                                         'time': time,
                                                                     }, (error) => {
                                                                         if (error) {
@@ -605,6 +605,7 @@ app.post('/owner/addHouse', upload.fields([
     const address = req.query.address;
     const notice = req.query.notice;
     const status = req.query.status;
+    const canBook = req.query.canBook;
     const time = Date.now();
 
     const getOwnerInfo = `select * from ${OWNERS_INFO} where phone_number=${ownerNumber}`;
@@ -646,6 +647,7 @@ app.post('/owner/addHouse', upload.fields([
         others_fee varchar(255),
         address varchar(255),
         notice varchar(255),
+        can_book varchar(255),
         status varchar(255),
         time varchar(255),
         primary key(id)
@@ -679,6 +681,7 @@ app.post('/owner/addHouse', upload.fields([
                             address: address,
                             notice: notice,
                             status: status,
+                            can_book: canBook,
                             time: time,
                         }, (error) => {
                             if (error) {
@@ -721,6 +724,7 @@ app.post('/owner/addHouse', upload.fields([
         address varchar(255),
         notice varchar(255),
         status varchar(255),
+        can_book varchar(255),
         house_id int(255),
         time varchar(255)        
         );`;
@@ -753,6 +757,7 @@ app.post('/owner/addHouse', upload.fields([
                                                         address: address,
                                                         notice: notice,
                                                         status: status,
+                                                        can_book: canBook,
                                                         house_id: houseID,
                                                         time: time,
                                                     }, (error) => {
@@ -831,7 +836,6 @@ app.get('/owner/showBookedHouse', (req, res) => {
 
 //update house
 app.put('/owner/updateHouse', (req, res) => {
-
     const houseId = req.query.house_id;
     const ownerName = req.query.owner_name;
     const ownerNumber = req.query.owner_number;
@@ -845,6 +849,7 @@ app.put('/owner/updateHouse', (req, res) => {
     const address = req.query.address;
     const notice = req.query.notice;
     const status = req.query.status;
+    const canBook = req.query.canBook;
 
     const getOwnerTableId = `select * from owner_table_${ownerNumber}_${ownerName} where id = ${houseId}`;
     db.query(getOwnerTableId, (error, result) => {
@@ -869,6 +874,7 @@ app.put('/owner/updateHouse', (req, res) => {
                     others_fee: othersFee,
                     address: address,
                     notice: notice,
+                    can_book: canBook,
                     status: status,
                 }, (error) => {
                     if (error) {
@@ -890,6 +896,7 @@ app.put('/owner/updateHouse', (req, res) => {
                             address: address,
                             notice: notice,
                             status: status,
+                            can_book: canBook,
                         }, (error) => {
                             if (error) {
                                 console.log(error);
@@ -909,7 +916,6 @@ app.put('/owner/updateHouse', (req, res) => {
             });
         }
     });
-
 });
 
 
@@ -986,36 +992,36 @@ app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
 });
 
 
-app.post('/owner/photo', upload.fields([
-    { name: 'image', maxCount: 4 },
-    { name: 'video', maxCount: 1 },
-]), (req, res) => {
-    let imageLink1;
-    let imageLink2;
-    let imageLink3;
-    let imageLink4;
-    let videoLink;
+// app.post('/owner/photo', upload.fields([
+//     { name: 'image', maxCount: 4 },
+//     { name: 'video', maxCount: 1 },
+// ]), (req, res) => {
+//     let imageLink1;
+//     let imageLink2;
+//     let imageLink3;
+//     let imageLink4;
+//     let videoLink;
 
-    imageLink1 = req.files['image'][0].filename;
-    imageLink2 = req.files['image'][1].filename;
-    imageLink3 = req.files['image'][2].filename;
-    imageLink4 = req.files['image'][3].filename;
-    videoLink = req.files['video'][0].filename;
-    res.send(videoLink);
+//     imageLink1 = req.files['image'][0].filename;
+//     imageLink2 = req.files['image'][1].filename;
+//     imageLink3 = req.files['image'][2].filename;
+//     imageLink4 = req.files['image'][3].filename;
+//     videoLink = req.files['video'][0].filename;
+//     res.send(videoLink);
 
-});
+// });
 
-app.get('/owner/photo', (req, res) => {
-    const q = `select * from test`;
-    db.query(q, (error, result) => {
-        if (error) {
-            console.log(error);
-            res.send('error');
-        } else {
-            res.send(result);
-        }
-    });
-});
+// app.get('/owner/photo', (req, res) => {
+//     const q = `select * from test`;
+//     db.query(q, (error, result) => {
+//         if (error) {
+//             console.log(error);
+//             res.send('error');
+//         } else {
+//             res.send(result);
+//         }
+//     });
+// });
 
 // ================================================================================================//
 // all user
