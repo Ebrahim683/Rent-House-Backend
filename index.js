@@ -20,6 +20,7 @@ const bodyParser = require('body-parser');
 const multer = require('multer');
 const path = require('path');
 const { error, log } = require('console');
+const { ifError } = require('assert');
 
 
 
@@ -501,11 +502,11 @@ app.post('/leaveRoom', (req, res) => {
     var ownerName = '';
     var ownerNumber = '';
 
-    const id = req.query.id;
+    const bookedRoomID = req.query.id;
     const userName = req.query.user_name;
     const userNumber = req.query.user_number;
 
-    const getRoomInfo = `select * from ${userNumber}_${userName}_booked_table where id = ${id}`;
+    const getRoomInfo = `select * from ${userNumber}_${userName}_booked_table where id = ${bookedRoomID}`;
     db.query(getRoomInfo, (error, result) => {
         if (error) {
             console.log(error);
@@ -522,6 +523,7 @@ app.post('/leaveRoom', (req, res) => {
                 const houseId = data.house_id;
                 ownerName = data.owner_name;
                 ownerNumber = data.owner_number;
+                const time = data.time;
 
                 const requestQuery = `create table if not exists leave_request_list_${ownerNumber}_${ownerName}(
         id int(255) not null auto_increment primary key,
@@ -533,7 +535,8 @@ app.post('/leaveRoom', (req, res) => {
         user_number varchar (255),
         category varchar (255),
         fee varchar (255),
-        address varchar (255)
+        address varchar (255),
+        time varchar (255)
       );`;
 
                 db.query(requestQuery, (error) => {
@@ -546,7 +549,7 @@ app.post('/leaveRoom', (req, res) => {
                     } else {
                         const addData = `insert into leave_request_list_${ownerNumber}_${ownerName} set ?`;
                         db.query(addData, {
-                            request_id: id,
+                            request_id: bookedRoomID,
                             house_id: houseId,
                             owner_name: ownerName,
                             owner_number: ownerNumber,
@@ -555,6 +558,7 @@ app.post('/leaveRoom', (req, res) => {
                             category: category,
                             fee: fee,
                             address: address,
+                            time: time,
                         }, (error) => {
                             if (error) {
                                 console.log(error);
@@ -768,6 +772,7 @@ app.post('/owner/addHouse', upload.fields([
                                                                 message: 'Fail to insert all owners house table'
                                                             });
                                                         } else {
+                                                            console.log(canBook);
                                                             res.status(200).json({
                                                                 status: 'success',
                                                                 message: 'house inserted'
@@ -950,6 +955,7 @@ app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
     const userNumber = req.query.user_number;
     const ownerName = req.query.owner_name;
     const ownerNumber = req.query.owner_number;
+    const time = req.query.time;
 
     const approveRequestQuery = `delete from leave_request_list_${ownerNumber}_${ownerName} where request_id = ${requestId}`;
     db.query(approveRequestQuery, (error) => {
@@ -978,10 +984,34 @@ app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
                                 message: 'fail to approve try again'
                             });
                         } else {
-                            res.status(200).json({
-                                status: 'success',
-                                message: 'approved'
+                            const updateOwnerRoom = `update ${OWNER_TABLE} set status = 'available' where house_id = ${houseID}`;
+                            db.query(updateOwnerRoom, (error) => {
+                                if (error) {
+                                    console.log(error);
+                                    res.json({
+                                        status: 'fail',
+                                        message: 'fail to update single owner table'
+                                    });
+                                } else {
+                                    const updateSingleOwnerRoom = `update owner_table_${ownerNumber}_${ownerName} set status = 'available' where time = ${time}`;
+
+                                    db.query(updateSingleOwnerRoom, (error) => {
+                                        if (error) {
+                                            console.log(error);
+                                            res.json({
+                                                status: 'fail',
+                                                message: 'fail to update single table'
+                                            });
+                                        } else {
+                                            res.status(200).json({
+                                                status: 'success',
+                                                message: 'approved'
+                                            });
+                                        }
+                                    });
+                                }
                             });
+
                         }
                     });
                 }
