@@ -72,7 +72,6 @@ db.connect((error) => {
 let sqlPhone = '';
 let sqlPassword = '';
 
-
 //home
 app.get('/', (req, res) => {
     res.json({
@@ -266,212 +265,68 @@ app.get('/getHouse', (req, res) => {
 //book house
 app.post('/bookHouse', (req, res) => {
 
-    var uid;
-    var userName;
+    const userName = req.query.user_name;
     const userNumber = req.query.phone_number;
     const house_id = req.query.house_id;
     const owner_name = req.query.owner_name;
     const owner_number = req.query.owner_number;
+    var time
 
-    const getUseIdQuery = `select * from ${USERS_INFO} where phone_number=${userNumber}`;
-    db.query(getUseIdQuery, (error, result) => {
+    const query = `select * from owner_table_${owner_number}_${owner_name} where id = ${house_id}`;
+    db.query(query, (error, result) => {
         if (error) {
             console.log(error);
             res.json({
                 status: 'fail',
-                message: 'fail to get user id'
+                message: 'fail to get time'
             });
         } else {
             Object.keys(result).forEach((key) => {
                 const data = result[key];
-                uid = data.id;
-                userName = data.name;
+                time = data.time;
+                const bookRoomReqQuery = `create table if not exists room_book_request_${owner_number}_${owner_name}(
+        id int(255) primary key auto_increment,
+        user_name varchar(255),
+        user_number varchar(255),
+        house_id int(255),
+        time varchar(255)
+    );`;
 
-                const getHouseInfoQuery = `select * from ${OWNER_TABLE} where id = "${house_id}"`;
-                db.query(getHouseInfoQuery, (error, result) => {
+                db.query(bookRoomReqQuery, (error) => {
                     if (error) {
                         console.log(error);
                         res.json({
                             status: 'fail',
-                            message: 'fail to get house details'
+                            message: 'fail to sent request'
                         });
                     } else {
-                        Object.keys(result).forEach((key) => {
-                            const data = result[key];
-                            const owner_id = data.owner_id;
-                            const image = data.image;
-                            const category = data.category;
-                            const fee = data.fee;
-                            const quantity = data.quantity;
-                            const advance_fee = data.advance_fee;
-                            const electricity_fee = data.electricity_fee;
-                            const gas_fee = data.gas_fee;
-                            const others_fee = data.others_fee;
-                            const address = data.address;
-                            const notice = data.notice;
-                            const status = data.status;
-                            const houseId = data.house_id;
-                            const time = data.time;
-
-                            const updateOwnerTableQuery = `update ${OWNER_TABLE} set status = 'booked', can_book = 'false' where id = ${house_id}`;
-                            db.query(updateOwnerTableQuery, (error) => {
-                                if (error) {
-                                    console.log(error);
-                                    res.json({
-                                        status: 'fail',
-                                        message: 'fail to update owner table'
-                                    });
-                                } else {
-                                    const updateSingleOwnerTableQuery = `update owner_table_${owner_number}_${owner_name} set status = 'booked', can_book = 'false' where id = ${houseId}`;
-                                    db.query(updateSingleOwnerTableQuery, (error) => {
-                                        if (error) {
-                                            console.log(error);
-                                            res.json({
-                                                status: 'fail',
-                                                message: 'fail to update table'
-                                            })
-                                        } else {
-                                            const createBookTableQuery = `create table if not exists ${userNumber}_${userName}_booked_table(
-                                                 id int(255) not null auto_increment primary key,
-                                                 owner_name varchar (255),
-                                                 owner_number varchar (255),
-                                                 owner_id int(255),
-                                                 house_id int(255),
-                                                 user_id int (255),
-                                                 user_name varchar (255),
-                                                 user_number varchar (255),
-                                                 category varchar (255),
-                                                 fee varchar (255),
-                                                 quantity varchar (255),
-                                                 advance_fee varchar (255),
-                                                 electricity_fee varchar (255),
-                                                 gas_fee varchar (255),
-                                                 others_fee varchar (255),
-                                                 address varchar (255),
-                                                 notice varchar (255),
-                                                 status varchar (255),
-                                                 can_book varchar(255),
-                                                 time varchar (255)
-                                                 );`;
-                                            db.query(createBookTableQuery, (error) => {
-                                                if (error) {
-                                                    console.log(error);
-                                                    res.json({
-                                                        status: 'fail',
-                                                        message: 'fail to crate book room table'
-                                                    });
-                                                } else {
-                                                    const bookRoomQuery = `insert into ${userNumber}_${userName}_booked_table set?`;
-                                                    db.query(bookRoomQuery, {
-                                                        'owner_name': owner_name,
-                                                        'owner_number': owner_number,
-                                                        'owner_id': owner_id,
-                                                        'house_id': house_id,
-                                                        'user_id': uid,
-                                                        'user_name': userName,
-                                                        'user_number': userNumber,
-                                                        'category': category,
-                                                        'fee': fee,
-                                                        'quantity': quantity,
-                                                        'advance_fee': advance_fee,
-                                                        'electricity_fee': electricity_fee,
-                                                        'gas_fee': gas_fee,
-                                                        'others_fee': others_fee,
-                                                        'address': address,
-                                                        'notice': notice,
-                                                        'status': 'booked',
-                                                        'can_book': 'false',
-                                                        'time': time,
-                                                    }, (error) => {
-                                                        if (error) {
-                                                            console.log(error);
-                                                            res.json({
-                                                                status: 'fail',
-                                                                message: 'fail to book room'
-                                                            });
-                                                        } else {
-                                                            const createSetBookedRoomToOwnerQuery = `create table if not exists owner_${owner_number}_${owner_name}_booked_room_list(
-                                                                id int(255) not null auto_increment primary key,
-                                                                owner_name varchar (255),
-                                                                owner_number varchar (255),
-                                                                owner_id int(255),
-                                                                house_id int(255),
-                                                                user_id int (255),
-                                                                user_name varchar (255),
-                                                                user_number varchar (255),
-                                                                category varchar (255),
-                                                                fee varchar (255),
-                                                                quantity varchar (255),
-                                                                advance_fee varchar (255),
-                                                                electricity_fee varchar (255),
-                                                                gas_fee varchar (255),
-                                                                others_fee varchar (255),
-                                                                address varchar (255),
-                                                                notice varchar (255),
-                                                                status varchar (255),
-                                                                can_book varchar (255),
-                                                                time varchar (255)
-                                                                );`;
-                                                            db.query(createSetBookedRoomToOwnerQuery, (error) => {
-                                                                if (error) {
-                                                                    console.log(error);
-                                                                    res.json({
-                                                                        status: 'fail',
-                                                                        message: 'fail to crate book room table to owner'
-                                                                    });
-                                                                } else {
-                                                                    const setBookedRoomToOwnerQuery = `insert into owner_${owner_number}_${owner_name}_booked_room_list set?`;
-                                                                    db.query(setBookedRoomToOwnerQuery, {
-                                                                        'owner_name': owner_name,
-                                                                        'owner_number': owner_number,
-                                                                        'owner_id': owner_id,
-                                                                        'house_id': house_id,
-                                                                        'user_id': uid,
-                                                                        'user_name': userName,
-                                                                        'user_number': userNumber,
-                                                                        'category': category,
-                                                                        'fee': fee,
-                                                                        'quantity': quantity,
-                                                                        'advance_fee': advance_fee,
-                                                                        'electricity_fee': electricity_fee,
-                                                                        'gas_fee': gas_fee,
-                                                                        'others_fee': others_fee,
-                                                                        'address': address,
-                                                                        'notice': notice,
-                                                                        'status': 'booked',
-                                                                        'can_book': 'false',
-                                                                        'time': time,
-                                                                    }, (error) => {
-                                                                        if (error) {
-                                                                            console.log(error);
-                                                                            res.json({
-                                                                                status: 'fail',
-                                                                                message: 'fail to set book room table to owner'
-                                                                            });
-                                                                        } else {
-                                                                            res.status(200).json({
-                                                                                status: 'success',
-                                                                                message: 'room booked'
-                                                                            });
-                                                                        }
-                                                                    });
-                                                                }
-                                                            });
-                                                        }
-                                                    });
-
-                                                }
-                                            });
-                                        }
-                                    });
-                                }
-                            });
+                        const insert = `insert into room_book_request_${owner_number}_${owner_name} set ?`;
+                        db.query(insert, {
+                            user_name: userName,
+                            user_number: userNumber,
+                            house_id: house_id,
+                            time: time,
+                        }, (error) => {
+                            if (error) {
+                                console.log(error);
+                                res.json({
+                                    status: 'fail',
+                                    message: 'fail to insert request data'
+                                });
+                            } else {
+                                res.json({
+                                    status: 'success',
+                                    message: 'request sent'
+                                });
+                            }
                         });
+
                     }
                 });
             });
         }
     });
+
 });
 
 //show booked house
@@ -521,7 +376,7 @@ app.post('/leaveRoom', (req, res) => {
                 const fee = data.fee;
                 const address = data.address;
                 const houseId = data.house_id;
-                ownerName = data.owner_name;
+                ownerName = data.owner_name.toLowerCase();
                 ownerNumber = data.owner_number;
                 const time = data.time;
 
@@ -629,7 +484,7 @@ app.post('/owner/addHouse', upload.fields([
 
             Object.keys(result).forEach((key) => {
                 const data = result[key];
-                ownerName = data.name;
+                ownerName = data.name.toLowerCase();
                 uid = data.id;
                 //add house into single owners
                 const createSingleOwnerTableQuery = `create table if not exists ${DATABASE}.${OWNER_TABLE}_${ownerNumber}_${ownerName}(
@@ -923,6 +778,272 @@ app.put('/owner/updateHouse', (req, res) => {
     });
 });
 
+//get single house
+app.get('/owner/getSingleHouse', (req, res) => {
+    const owner_name = req.query.owner_name;
+    const owner_number = req.query.owner_number;
+    const time = req.query.time;
+
+    const query = `select * from owner_table_${owner_number}_${owner_name} where time = ${time}`;
+    db.query(query, (error, result) => {
+        if (error) {
+            console.log(error);
+            res.json({
+                status: 'fail',
+                message: 'fail to get data'
+            });
+        } else {
+            res.status(200).json({
+                status: 'success',
+                message: 'house loaded',
+                data: result
+            });
+        }
+    });
+});
+
+//get book room request
+app.get('/owner/bookRoomRequest', (req, res) => {
+    const ownerName = req.query.owner_name;
+    const ownerNumber = req.query.owner_number;
+
+    const query = `select * from room_book_request_${ownerNumber}_${ownerName}`;
+    db.query(query, (error, result) => {
+        if (error) {
+            console.log(error);
+            res.json({
+                status: 'fail',
+                message: 'fail to get room request'
+            });
+        } else {
+            res.json({
+                status: 'success',
+                message: 'book room requests',
+                data: result
+            });
+        }
+    });
+
+});
+
+//approve book room request
+app.post('/owner/approveBookRoomRequest', (req, res) => {
+    var uid;
+    var userName;
+    const userNumber = req.query.phone_number;
+    const house_id = req.query.house_id;
+    const owner_name = req.query.owner_name;
+    const owner_number = req.query.owner_number;
+
+    const getUseIdQuery = `select * from ${USERS_INFO} where phone_number=${userNumber}`;
+    db.query(getUseIdQuery, (error, result) => {
+        if (error) {
+            console.log(error);
+            res.json({
+                status: 'fail',
+                message: 'fail to get user id'
+            });
+        } else {
+            Object.keys(result).forEach((key) => {
+                const data = result[key];
+                uid = data.id;
+                userName = data.name.toLowerCase();
+
+                const getHouseInfoQuery = `select * from ${OWNER_TABLE} where id = "${house_id}"`;
+                db.query(getHouseInfoQuery, (error, result) => {
+                    if (error) {
+                        console.log(error);
+                        res.json({
+                            status: 'fail',
+                            message: 'fail to get house details'
+                        });
+                    } else {
+                        Object.keys(result).forEach((key) => {
+                            const data = result[key];
+                            const owner_id = data.owner_id;
+                            const category = data.category;
+                            const fee = data.fee;
+                            const quantity = data.quantity;
+                            const advance_fee = data.advance_fee;
+                            const electricity_fee = data.electricity_fee;
+                            const gas_fee = data.gas_fee;
+                            const others_fee = data.others_fee;
+                            const address = data.address;
+                            const notice = data.notice;
+                            const status = data.status;
+                            const houseId = data.house_id;
+                            const time = data.time;
+
+                            const updateOwnerTableQuery = `update ${OWNER_TABLE} set status = 'booked', can_book = 'no' where id = ${house_id}`;
+                            db.query(updateOwnerTableQuery, (error) => {
+                                if (error) {
+                                    console.log(error);
+                                    res.json({
+                                        status: 'fail',
+                                        message: 'fail to update owner table'
+                                    });
+                                } else {
+                                    const updateSingleOwnerTableQuery = `update owner_table_${owner_number}_${owner_name} set status = 'booked', can_book = 'no' where id = ${houseId}`;
+                                    db.query(updateSingleOwnerTableQuery, (error) => {
+                                        if (error) {
+                                            console.log(error);
+                                            res.json({
+                                                status: 'fail',
+                                                message: 'fail to update table'
+                                            })
+                                        } else {
+                                            const createBookTableQuery = `create table if not exists ${userNumber}_${userName}_booked_table(
+                                                 id int(255) not null auto_increment primary key,
+                                                 owner_name varchar (255),
+                                                 owner_number varchar (255),
+                                                 owner_id int(255),
+                                                 house_id int(255),
+                                                 user_id int (255),
+                                                 user_name varchar (255),
+                                                 user_number varchar (255),
+                                                 category varchar (255),
+                                                 fee varchar (255),
+                                                 quantity varchar (255),
+                                                 advance_fee varchar (255),
+                                                 electricity_fee varchar (255),
+                                                 gas_fee varchar (255),
+                                                 others_fee varchar (255),
+                                                 address varchar (255),
+                                                 notice varchar (255),
+                                                 status varchar (255),
+                                                 can_book varchar(255),
+                                                 time varchar (255)
+                                                 );`;
+                                            db.query(createBookTableQuery, (error) => {
+                                                if (error) {
+                                                    console.log(error);
+                                                    res.json({
+                                                        status: 'fail',
+                                                        message: 'fail to crate book room table'
+                                                    });
+                                                } else {
+                                                    const bookRoomQuery = `insert into ${userNumber}_${userName}_booked_table set?`;
+                                                    db.query(bookRoomQuery, {
+                                                        'owner_name': owner_name,
+                                                        'owner_number': owner_number,
+                                                        'owner_id': owner_id,
+                                                        'house_id': house_id,
+                                                        'user_id': uid,
+                                                        'user_name': userName,
+                                                        'user_number': userNumber,
+                                                        'category': category,
+                                                        'fee': fee,
+                                                        'quantity': quantity,
+                                                        'advance_fee': advance_fee,
+                                                        'electricity_fee': electricity_fee,
+                                                        'gas_fee': gas_fee,
+                                                        'others_fee': others_fee,
+                                                        'address': address,
+                                                        'notice': notice,
+                                                        'status': 'booked',
+                                                        'can_book': 'no',
+                                                        'time': time,
+                                                    }, (error) => {
+                                                        if (error) {
+                                                            console.log(error);
+                                                            res.json({
+                                                                status: 'fail',
+                                                                message: 'fail to book room'
+                                                            });
+                                                        } else {
+                                                            const createSetBookedRoomToOwnerQuery = `create table if not exists owner_${owner_number}_${owner_name}_booked_room_list(
+                                                                id int(255) not null auto_increment primary key,
+                                                                owner_name varchar (255),
+                                                                owner_number varchar (255),
+                                                                owner_id int(255),
+                                                                house_id int(255),
+                                                                user_id int (255),
+                                                                user_name varchar (255),
+                                                                user_number varchar (255),
+                                                                category varchar (255),
+                                                                fee varchar (255),
+                                                                quantity varchar (255),
+                                                                advance_fee varchar (255),
+                                                                electricity_fee varchar (255),
+                                                                gas_fee varchar (255),
+                                                                others_fee varchar (255),
+                                                                address varchar (255),
+                                                                notice varchar (255),
+                                                                status varchar (255),
+                                                                can_book varchar (255),
+                                                                time varchar (255)
+                                                                );`;
+                                                            db.query(createSetBookedRoomToOwnerQuery, (error) => {
+                                                                if (error) {
+                                                                    console.log(error);
+                                                                    res.json({
+                                                                        status: 'fail',
+                                                                        message: 'fail to crate book room table to owner'
+                                                                    });
+                                                                } else {
+                                                                    const setBookedRoomToOwnerQuery = `insert into owner_${owner_number}_${owner_name}_booked_room_list set?`;
+                                                                    db.query(setBookedRoomToOwnerQuery, {
+                                                                        'owner_name': owner_name,
+                                                                        'owner_number': owner_number,
+                                                                        'owner_id': owner_id,
+                                                                        'house_id': house_id,
+                                                                        'user_id': uid,
+                                                                        'user_name': userName,
+                                                                        'user_number': userNumber,
+                                                                        'category': category,
+                                                                        'fee': fee,
+                                                                        'quantity': quantity,
+                                                                        'advance_fee': advance_fee,
+                                                                        'electricity_fee': electricity_fee,
+                                                                        'gas_fee': gas_fee,
+                                                                        'others_fee': others_fee,
+                                                                        'address': address,
+                                                                        'notice': notice,
+                                                                        'status': 'booked',
+                                                                        'can_book': 'no',
+                                                                        'time': time,
+                                                                    }, (error) => {
+                                                                        if (error) {
+                                                                            console.log(error);
+                                                                            res.json({
+                                                                                status: 'fail',
+                                                                                message: 'fail to set book room table to owner'
+                                                                            });
+                                                                        } else {
+                                                                            const deleteRequestQuery = `delete from room_book_request_${owner_number}_${owner_name} where house_id = ${house_id}`;
+                                                                            db.query(deleteRequestQuery, (error) => {
+                                                                                if (error) {
+                                                                                    console.log(error);
+                                                                                    res.json({
+                                                                                        status: 'fail',
+                                                                                        message: 'fail to approve request'
+                                                                                    });
+                                                                                } else {
+                                                                                    res.status(200).json({
+                                                                                        status: 'success',
+                                                                                        message: 'room book request approved'
+                                                                                    });
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    });
+                                                                }
+                                                            });
+                                                        }
+                                                    });
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        });
+                    }
+                });
+            });
+        }
+    });
+});
 
 //get leave request
 app.get('/owner/leaveRoomRequests', (req, res) => {
@@ -1020,38 +1141,6 @@ app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
     });
 
 });
-
-
-// app.post('/owner/photo', upload.fields([
-//     { name: 'image', maxCount: 4 },
-//     { name: 'video', maxCount: 1 },
-// ]), (req, res) => {
-//     let imageLink1;
-//     let imageLink2;
-//     let imageLink3;
-//     let imageLink4;
-//     let videoLink;
-
-//     imageLink1 = req.files['image'][0].filename;
-//     imageLink2 = req.files['image'][1].filename;
-//     imageLink3 = req.files['image'][2].filename;
-//     imageLink4 = req.files['image'][3].filename;
-//     videoLink = req.files['video'][0].filename;
-//     res.send(videoLink);
-
-// });
-
-// app.get('/owner/photo', (req, res) => {
-//     const q = `select * from test`;
-//     db.query(q, (error, result) => {
-//         if (error) {
-//             console.log(error);
-//             res.send('error');
-//         } else {
-//             res.send(result);
-//         }
-//     });
-// });
 
 // ================================================================================================//
 // all user
