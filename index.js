@@ -34,7 +34,7 @@ app.use(bodyParser.urlencoded({
     extended: true
 }));
 
-var storage = multer.diskStorage({
+var uploadHouseImageStorage = multer.diskStorage({
     destination: function (req, file, callBack) {
         if (file.fieldname == 'image') {
             callBack(null, './upload/images/');
@@ -43,13 +43,27 @@ var storage = multer.diskStorage({
         }
     },
     filename: function (req, file, callBack) {
-        callBack(null, `${file.fieldname}_${file.originalname}_${Date.now()}${path.extname(file.originalname)}`);
+        callBack(null, `${file.fieldname}_${Date.now()}${path.extname(file.originalname)}`);
     },
 });
 
-var upload = multer({ storage: storage });
+
+var profilePicStorage = multer.diskStorage({
+    destination: function (req, file, callBack) {
+        if (file.fieldname == 'profileImage') {
+            callBack(null, './upload/profiles/');
+        }
+    },
+    filename: function (req, file, callBack) {
+        callBack(null, `${file.fieldname}_${Date.now()}${path.extname(file.originalname)}`);
+    },
+});
+
+var uploadHouseImages = multer({ storage: uploadHouseImageStorage });
+var uploadProfilePic = multer({ storage: profilePicStorage });
 
 app.use('/image', express.static('upload/images/'));
+app.use('/profileImage', express.static('upload/profiles/'));
 app.use('/video', express.static('upload/videos/'));
 //create database
 const db = mysql.createConnection({
@@ -96,6 +110,7 @@ app.post('/register', (req, res) => {
         email varchar(255),
         password varchar(255),
         role varchar(255),
+        profile_pic varchar(255),
         primary key(id)
     );`;
     db.query(createAllTableQuery, (error) => {
@@ -108,7 +123,14 @@ app.post('/register', (req, res) => {
         } else {
             //insert into database
             const query = `insert into ${ALL_INFO} set ?`
-            db.query(query, { name: name, phone_number: phone_number, email: email, password: password, role: role }, (error) => {
+            db.query(query, {
+                name: name,
+                phone_number: phone_number,
+                email: email,
+                password: password,
+                role: role,
+                profile_pic: '',
+            }, (error) => {
                 if (error) {
                     res.json({
                         status: 'fail',
@@ -135,6 +157,7 @@ app.post('/register', (req, res) => {
         email varchar(255),
         password varchar(255),
         role varchar(255),
+        profile_pic varchar(255),
         primary key(id)
     );`;
         db.query(createUserTableQuery, (error) => {
@@ -147,7 +170,14 @@ app.post('/register', (req, res) => {
             } else {
                 //insert into database
                 const query = `insert into ${USERS_INFO} set ?`
-                db.query(query, { name: name, phone_number: phone_number, email: email, password: password, role: role }, (error) => {
+                db.query(query, {
+                    name: name,
+                    phone_number: phone_number,
+                    email: email,
+                    password: password,
+                    role: role,
+                    profile_pic: ''
+                }, (error) => {
                     if (error) {
                         res.json({
                             status: 'fail',
@@ -172,6 +202,7 @@ app.post('/register', (req, res) => {
         email varchar(255),
         password varchar(255),
         role varchar(255),
+        profile_pic varchar(255),
         primary key(id)
     );`;
         db.query(createOwnerTableQuery, (error) => {
@@ -184,7 +215,14 @@ app.post('/register', (req, res) => {
             } else {
                 //insert into database
                 const query = `insert into ${OWNERS_INFO} set ?`
-                db.query(query, { name: name, phone_number: phone_number, email: email, password: password, role: role }, (error) => {
+                db.query(query, {
+                    name: name,
+                    phone_number: phone_number,
+                    email: email,
+                    password: password,
+                    role: role,
+                    profile_pic: ''
+                }, (error) => {
                     if (error) {
                         res.json({
                             status: 'fail',
@@ -442,7 +480,7 @@ app.post('/leaveRoom', (req, res) => {
 //House owner
 
 //add house
-app.post('/owner/addHouse', upload.fields([
+app.post('/owner/addHouse', uploadHouseImages.fields([
     { name: 'image', maxCount: 4 },
     { name: 'video', maxCount: 1 },
 ]), (req, res) => {
@@ -1149,7 +1187,7 @@ app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
 //get profile
 app.get('/profile', (req, res) => {
     const phoneNumber = req.query.phone_number;
-    const query = `SELECT * FROM ${USERS_INFO} WHERE phone_number=${phoneNumber}`;
+    const query = `SELECT * FROM ${ALL_INFO} WHERE phone_number=${phoneNumber}`;
     db.query(query, (error, result) => {
         if (error) {
             console.log(error);
@@ -1167,7 +1205,93 @@ app.get('/profile', (req, res) => {
     });
 });
 
-//get house
+//add profile picture
+app.put('/addProfilePic', uploadProfilePic.single('profileImage'), (req, res) => {
+    const phoneNumber = req.query.phone_number;
+    var profileImage = `${BASE_URL}/profileImage/${req.file.filename}`;
+
+    const query = `SELECT * FROM ${ALL_INFO} WHERE phone_number=${phoneNumber}`;
+    db.query(query, (error, result) => {
+        if (error) {
+            console.log(error);
+            res.json({
+                status: 'fail',
+                message: 'invalid user',
+            });
+        } else {
+            Object.keys(result).forEach((key) => {
+                var data = result[key];
+                var id = data.id;
+                var name = data.name;
+                var phoneNumber = data.phone_number;
+                var upEmail = data.email;
+                var upPassword = data.password;
+                var upRole = data.role;
+
+                const updateProfileQuery = `update ${ALL_INFO} set ? where phone_number = ${phoneNumber}`;
+                db.query(updateProfileQuery, {
+                    name: name,
+                    phone_number: phoneNumber,
+                    email: upEmail,
+                    password: upPassword,
+                    role: upRole,
+                    profile_pic: profileImage,
+                }, (error) => {
+                    if (error) {
+                        console.log(error);
+                        res.json({
+                            status: 'fail',
+                            message: 'fail to update profile',
+                        });
+                    } else {
+                        if (upRole == 'user') {
+                            const updateUserProfileQuery = `update ${USERS_INFO} set ? where phone_number = ${phoneNumber}`;
+                            db.query(updateUserProfileQuery, {
+                                name: name,
+                                phone_number: phoneNumber,
+                                email: upEmail,
+                                password: upPassword,
+                                role: upRole,
+                                profile_pic: profileImage,
+                            }, (error) => {
+                                if (error) {
+                                    console.log(error);
+                                    res.json({
+                                        status: 'fail',
+                                        message: 'fail to update user profile',
+                                    });
+                                }
+                            });
+                        } else if (upRole == 'owner') {
+
+                            const updateUserProfileQuery = `update ${OWNERS_INFO} set ? where phone_number = ${phoneNumber}`;
+                            db.query(updateUserProfileQuery, {
+                                name: name,
+                                phone_number: phoneNumber,
+                                email: upEmail,
+                                password: upPassword,
+                                role: upRole,
+                                profile_pic: profileImage,
+                            }, (error) => {
+                                if (error) {
+                                    console.log(error);
+                                    res.json({
+                                        status: 'fail',
+                                        message: 'fail to update user profile',
+                                    });
+                                }
+                            });
+                        }
+                        res.status(200).json({
+                            status: 'success',
+                            message: 'profile picture updated'
+                        });
+                    }
+                });
+            });
+        }
+    });
+});
 
 
 //listen port
