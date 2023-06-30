@@ -86,6 +86,8 @@ db.connect((error) => {
 let sqlPhone = '';
 let sqlPassword = '';
 
+
+
 //home
 app.get('/', (req, res) => {
     res.json({
@@ -102,6 +104,7 @@ app.post('/register', (req, res) => {
     const email = req.query.email;
     const password = bcrypt.hashSync(req.query.password, salt);
     const role = req.query.role;
+    const deviceToken = req.query.device_token;
 
     const createAllTableQuery = `create table if not exists ${DATABASE}.${ALL_INFO}(
         id int(255) not null auto_increment,
@@ -111,6 +114,7 @@ app.post('/register', (req, res) => {
         password varchar(255),
         role varchar(255),
         profile_pic varchar(255),
+        device_token varchar(255),
         primary key(id)
     );`;
     db.query(createAllTableQuery, (error) => {
@@ -130,6 +134,7 @@ app.post('/register', (req, res) => {
                 password: password,
                 role: role,
                 profile_pic: '',
+                device_token: deviceToken,
             }, (error) => {
                 if (error) {
                     res.json({
@@ -158,6 +163,7 @@ app.post('/register', (req, res) => {
         password varchar(255),
         role varchar(255),
         profile_pic varchar(255),
+        device_token varchar(255),
         primary key(id)
     );`;
         db.query(createUserTableQuery, (error) => {
@@ -176,7 +182,8 @@ app.post('/register', (req, res) => {
                     email: email,
                     password: password,
                     role: role,
-                    profile_pic: ''
+                    profile_pic: '',
+                    device_token: deviceToken,
                 }, (error) => {
                     if (error) {
                         res.json({
@@ -203,6 +210,7 @@ app.post('/register', (req, res) => {
         password varchar(255),
         role varchar(255),
         profile_pic varchar(255),
+        device_token varchar(255),
         primary key(id)
     );`;
         db.query(createOwnerTableQuery, (error) => {
@@ -221,7 +229,8 @@ app.post('/register', (req, res) => {
                     email: email,
                     password: password,
                     role: role,
-                    profile_pic: ''
+                    profile_pic: '',
+                    device_token: deviceToken,
                 }, (error) => {
                     if (error) {
                         res.json({
@@ -246,7 +255,9 @@ app.post('/register', (req, res) => {
 app.post('/login', (req, res) => {
     const phone_number = req.query.phone_number;
     const password = req.query.password;
-    const fetchQuery = `SELECT phone_number, password ,name, role FROM ${ALL_INFO} WHERE phone_number=${phone_number}`;
+    const deviceToken = req.query.device_token;
+    var role = '';
+    const fetchQuery = `SELECT * FROM ${DATABASE}.${ALL_INFO} WHERE phone_number=${phone_number}`;
     db.query(fetchQuery, async (error, result) => {
         if (error) {
             console.log(error);
@@ -259,14 +270,57 @@ app.post('/login', (req, res) => {
                 const data = result[key];
                 sqlPhone = data.phone_number;
                 sqlPassword = data.password;
+                role = data.role;
                 console.log(sqlPassword);
             });
             var match = await bcrypt.compare(password, sqlPassword);
             if (match && phone_number == sqlPhone) {
-                res.status(200).json({
-                    status: 'success',
-                    message: 'login successful',
-                    data: result,
+
+                const updateDeviceTokenQuery = `update ${DATABASE}.${ALL_INFO} set device_token = "${deviceToken}" where phone_number = ${sqlPhone}`;
+                db.query(updateDeviceTokenQuery, (error) => {
+                    if (error) {
+                        console.log(error);
+                        res.json({
+                            status: 'fail',
+                            message: 'fail to update device token all info'
+                        });
+                    } else {
+                        if (role == 'user') {
+                            const updateDeviceTokenQueryUser = `update ${DATABASE}.${USERS_INFO} set device_token = "${deviceToken}" where phone_number = ${sqlPhone}`;
+                            db.query(updateDeviceTokenQueryUser, (error) => {
+                                if (error) {
+                                    res.json({
+                                        status: 'fail',
+                                        message: 'fail to update device token user info'
+                                    });
+                                } else {
+                                    res.status(200).json({
+                                        status: 'success',
+                                        message: 'login successful',
+                                        data: result,
+                                    });
+                                }
+                            });
+                        } else if (role == 'owner') {
+
+                            const updateDeviceTokenQueryOwner = `update ${DATABASE}.${OWNERS_INFO} set device_token = "${deviceToken}" where phone_number = ${sqlPhone}`;
+                            db.query(updateDeviceTokenQueryOwner, (error) => {
+                                if (error) {
+                                    res.json({
+                                        status: 'fail',
+                                        message: 'fail to update device token owner info'
+                                    });
+                                } else {
+                                    res.status(200).json({
+                                        status: 'success',
+                                        message: 'login successful',
+                                        data: result,
+                                    });
+                                }
+                            });
+
+                        }
+                    }
                 });
             } else {
                 res.json({
@@ -279,6 +333,8 @@ app.post('/login', (req, res) => {
 
 });
 
+
+//get house
 app.get('/getHouse', (req, res) => {
     const category = req.query.category;
     const getHouseQuery = `select * from ${OWNER_TABLE} where category="${category.toLowerCase()}"`;
@@ -308,21 +364,34 @@ app.post('/bookHouse', (req, res) => {
     const house_id = req.query.house_id;
     const owner_name = req.query.owner_name;
     const owner_number = req.query.owner_number;
-    var time
+    var time;
 
-    const query = `select * from owner_table_${owner_number}_${owner_name} where id = ${house_id}`;
-    db.query(query, (error, result) => {
+    const getUserInfoQuery = `select * from ${USERS_INFO} where phone_number = ${userNumber}`;
+    db.query(getUserInfoQuery, (error, result) => {
         if (error) {
             console.log(error);
             res.json({
                 status: 'fail',
-                message: 'fail to get time'
+                message: 'fail to book house'
             });
         } else {
             Object.keys(result).forEach((key) => {
                 const data = result[key];
-                time = data.time;
-                const bookRoomReqQuery = `create table if not exists room_book_request_${owner_number}_${owner_name}(
+                deviceToken = data.device_token;
+                console.log(deviceToken);
+                const query = `select * from owner_table_${owner_number}_${owner_name} where id = ${house_id}`;
+                db.query(query, (error, result) => {
+                    if (error) {
+                        console.log(error);
+                        res.json({
+                            status: 'fail',
+                            message: 'fail to book house'
+                        });
+                    } else {
+                        Object.keys(result).forEach((key) => {
+                            const data = result[key];
+                            time = data.time;
+                            const bookRoomReqQuery = `create table if not exists room_book_request_${owner_number}_${owner_name}(
         id int(255) primary key auto_increment,
         user_name varchar(255),
         user_number varchar(255),
@@ -330,37 +399,41 @@ app.post('/bookHouse', (req, res) => {
         time varchar(255)
     );`;
 
-                db.query(bookRoomReqQuery, (error) => {
-                    if (error) {
-                        console.log(error);
-                        res.json({
-                            status: 'fail',
-                            message: 'fail to sent request'
-                        });
-                    } else {
-                        const insert = `insert into room_book_request_${owner_number}_${owner_name} set ?`;
-                        db.query(insert, {
-                            user_name: userName,
-                            user_number: userNumber,
-                            house_id: house_id,
-                            time: time,
-                        }, (error) => {
-                            if (error) {
-                                console.log(error);
-                                res.json({
-                                    status: 'fail',
-                                    message: 'fail to insert request data'
-                                });
-                            } else {
-                                res.json({
-                                    status: 'success',
-                                    message: 'request sent'
-                                });
-                            }
-                        });
+                            db.query(bookRoomReqQuery, (error) => {
+                                if (error) {
+                                    console.log(error);
+                                    res.json({
+                                        status: 'fail',
+                                        message: 'fail to sent request'
+                                    });
+                                } else {
+                                    const insert = `insert into room_book_request_${owner_number}_${owner_name} set ?`;
+                                    db.query(insert, {
+                                        user_name: userName,
+                                        user_number: userNumber,
+                                        house_id: house_id,
+                                        time: time,
+                                    }, (error) => {
+                                        if (error) {
+                                            console.log(error);
+                                            res.json({
+                                                status: 'fail',
+                                                message: 'fail to insert request data'
+                                            });
+                                        } else {
+                                            res.json({
+                                                status: 'success',
+                                                message: 'request sent'
+                                            });
+                                        }
+                                    });
 
+                                }
+                            });
+                        });
                     }
                 });
+
             });
         }
     });
@@ -390,6 +463,8 @@ app.get('/showBookedHouse', (req, res) => {
     });
 });
 
+
+
 //send room leave request
 app.post('/leaveRoom', (req, res) => {
     var ownerName = '';
@@ -399,26 +474,40 @@ app.post('/leaveRoom', (req, res) => {
     const userName = req.query.user_name;
     const userNumber = req.query.user_number;
 
-    const getRoomInfo = `select * from ${userNumber}_${userName}_booked_table where id = ${bookedRoomID}`;
-    db.query(getRoomInfo, (error, result) => {
+
+    const getUserInfoQuery = `select * from ${USERS_INFO} where phone_number = ${userNumber}`;
+    db.query(getUserInfoQuery, (error, result) => {
         if (error) {
             console.log(error);
             res.json({
                 status: 'fail',
-                message: 'fail to get room info'
+                message: 'fail to get user info'
             });
         } else {
             Object.keys(result).forEach((key) => {
                 const data = result[key];
-                const category = data.category;
-                const fee = data.fee;
-                const address = data.address;
-                const houseId = data.house_id;
-                ownerName = data.owner_name.toLowerCase();
-                ownerNumber = data.owner_number;
-                const time = data.time;
 
-                const requestQuery = `create table if not exists leave_request_list_${ownerNumber}_${ownerName}(
+                const getRoomInfo = `select * from ${userNumber}_${userName}_booked_table where id = ${bookedRoomID}`;
+                db.query(getRoomInfo, (error, result) => {
+                    if (error) {
+                        console.log(error);
+                        res.json({
+                            status: 'fail',
+                            message: 'fail to get room info'
+                        });
+                    } else {
+
+                        Object.keys(result).forEach((key) => {
+                            const data = result[key];
+                            const category = data.category;
+                            const fee = data.fee;
+                            const address = data.address;
+                            const houseId = data.house_id;
+                            ownerName = data.owner_name.toLowerCase();
+                            ownerNumber = data.owner_number;
+                            const time = data.time;
+
+                            const requestQuery = `create table if not exists leave_request_list_${ownerNumber}_${ownerName}(
         id int(255) not null auto_increment primary key,
         request_id int(255),
         house_id int(255),
@@ -432,52 +521,55 @@ app.post('/leaveRoom', (req, res) => {
         time varchar (255)
       );`;
 
-                db.query(requestQuery, (error) => {
-                    if (error) {
-                        console.log(error);
-                        res.json({
-                            status: 'fail',
-                            message: 'fail to send request'
-                        });
-                    } else {
-                        const addData = `insert into leave_request_list_${ownerNumber}_${ownerName} set ?`;
-                        db.query(addData, {
-                            request_id: bookedRoomID,
-                            house_id: houseId,
-                            owner_name: ownerName,
-                            owner_number: ownerNumber,
-                            user_name: userName,
-                            user_number: userNumber,
-                            category: category,
-                            fee: fee,
-                            address: address,
-                            time: time,
-                        }, (error) => {
-                            if (error) {
-                                console.log(error);
-                                res.json({
-                                    status: 'fail',
-                                    message: 'fail to add data'
-                                });
-                            } else {
-                                res.status(200).json({
-                                    status: 'success',
-                                    message: 'request sent'
-                                });
-                            }
+                            db.query(requestQuery, (error) => {
+                                if (error) {
+                                    console.log(error);
+                                    res.json({
+                                        status: 'fail',
+                                        message: 'fail to send request'
+                                    });
+                                } else {
+                                    const addData = `insert into leave_request_list_${ownerNumber}_${ownerName} set ?`;
+                                    db.query(addData, {
+                                        request_id: bookedRoomID,
+                                        house_id: houseId,
+                                        owner_name: ownerName,
+                                        owner_number: ownerNumber,
+                                        user_name: userName,
+                                        user_number: userNumber,
+                                        category: category,
+                                        fee: fee,
+                                        address: address,
+                                        time: time,
+                                    }, (error) => {
+                                        if (error) {
+                                            console.log(error);
+                                            res.json({
+                                                status: 'fail',
+                                                message: 'fail to add data'
+                                            });
+                                        } else {
+                                            res.status(200).json({
+                                                status: 'success',
+                                                message: 'request sent'
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+
                         });
                     }
                 });
-
             });
         }
     });
-
-
 });
 
 // ===============================================================================================//
 //House owner
+
+
 
 //add house
 app.post('/owner/addHouse', uploadHouseImages.fields([
@@ -524,6 +616,7 @@ app.post('/owner/addHouse', uploadHouseImages.fields([
                 const data = result[key];
                 ownerName = data.name.toLowerCase();
                 uid = data.id;
+
                 //add house into single owners
                 const createSingleOwnerTableQuery = `create table if not exists ${DATABASE}.${OWNER_TABLE}_${ownerNumber}_${ownerName}(
         id int(255) not null auto_increment,
@@ -623,7 +716,7 @@ app.post('/owner/addHouse', uploadHouseImages.fields([
         status varchar(255),
         can_book varchar(255),
         house_id int(255),
-        time varchar(255)        
+        time varchar(255)
         );`;
 
                                             db.query(allOwnersHouseQuery, (error) => {
@@ -869,7 +962,7 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
     var uid;
     var userName;
     const userNumber = req.query.phone_number;
-    const house_id = req.query.house_id;
+    const time = req.query.time;
     const owner_name = req.query.owner_name;
     const owner_number = req.query.owner_number;
 
@@ -887,7 +980,7 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
                 uid = data.id;
                 userName = data.name.toLowerCase();
 
-                const getHouseInfoQuery = `select * from ${OWNER_TABLE} where id = "${house_id}"`;
+                const getHouseInfoQuery = `select * from ${OWNER_TABLE} where time = "${time}"`;
                 db.query(getHouseInfoQuery, (error, result) => {
                     if (error) {
                         console.log(error);
@@ -908,11 +1001,10 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
                             const others_fee = data.others_fee;
                             const address = data.address;
                             const notice = data.notice;
-                            const status = data.status;
-                            const houseId = data.house_id;
-                            const time = data.time;
+                            const house_id = data.house_id;
 
-                            const updateOwnerTableQuery = `update ${OWNER_TABLE} set status = 'booked', can_book = 'no' where id = ${house_id}`;
+
+                            const updateOwnerTableQuery = `update ${OWNER_TABLE} set status = 'booked', can_book = 'no' where time = ${time}`;
                             db.query(updateOwnerTableQuery, (error) => {
                                 if (error) {
                                     console.log(error);
@@ -921,7 +1013,7 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
                                         message: 'fail to update owner table'
                                     });
                                 } else {
-                                    const updateSingleOwnerTableQuery = `update owner_table_${owner_number}_${owner_name} set status = 'booked', can_book = 'no' where id = ${houseId}`;
+                                    const updateSingleOwnerTableQuery = `update owner_table_${owner_number}_${owner_name} set status = 'booked', can_book = 'no' where time = ${time}`;
                                     db.query(updateSingleOwnerTableQuery, (error) => {
                                         if (error) {
                                             console.log(error);
@@ -1106,6 +1198,8 @@ app.get('/owner/leaveRoomRequests', (req, res) => {
     });
 });
 
+
+
 //approve request
 app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
     const requestId = req.query.request_id;
@@ -1125,7 +1219,7 @@ app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
                 message: 'approve fail try again later'
             });
         } else {
-            const deleteFromUserQuery = `delete from ${userNumber}_${userName}_booked_table where house_id = ${houseID}`;
+            const deleteFromUserQuery = `delete from ${userNumber}_${userName}_booked_table where time = ${time}`;
             db.query(deleteFromUserQuery, (error) => {
                 if (error) {
                     console.log(error);
@@ -1134,7 +1228,7 @@ app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
                         message: 'fail to approve try again later'
                     });
                 } else {
-                    const deleteFromOwnerQuery = `delete from owner_${ownerNumber}_${ownerName}_booked_room_list where house_id = ${houseID}`;
+                    const deleteFromOwnerQuery = `delete from owner_${ownerNumber}_${ownerName}_booked_room_list where time = ${time}`;
                     db.query(deleteFromOwnerQuery, (error) => {
                         if (error) {
                             console.log(error);
@@ -1143,7 +1237,7 @@ app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
                                 message: 'fail to approve try again'
                             });
                         } else {
-                            const updateOwnerRoom = `update ${OWNER_TABLE} set status = 'available' where house_id = ${houseID}`;
+                            const updateOwnerRoom = `update ${OWNER_TABLE} set status = 'available' where time = ${time}`;
                             db.query(updateOwnerRoom, (error) => {
                                 if (error) {
                                     console.log(error);
