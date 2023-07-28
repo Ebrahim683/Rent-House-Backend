@@ -95,6 +95,8 @@ app.get('/', (req, res) => {
     });
 });
 
+
+
 //register
 app.post('/register', (req, res) => {
     const salt = bcrypt.genSaltSync(10);
@@ -108,6 +110,7 @@ app.post('/register', (req, res) => {
     const createAllTableQuery = `create table if not exists ${DATABASE}.${ALL_INFO}(
         id int(255) not null auto_increment,
         name varchar(255),
+        real_name varchar(255),
         phone_number varchar(255),
         email varchar(255),
         password varchar(255),
@@ -128,6 +131,7 @@ app.post('/register', (req, res) => {
             const query = `insert into ${ALL_INFO} set ?`
             db.query(query, {
                 name: name,
+                real_name: name,
                 phone_number: phone_number,
                 email: email,
                 password: password,
@@ -157,6 +161,7 @@ app.post('/register', (req, res) => {
         const createUserTableQuery = `create table if not exists ${DATABASE}.${USERS_INFO}(
         id int(255) not null auto_increment,
         name varchar(255),
+        real_name varchar(255),
         phone_number varchar(255),
         email varchar(255),
         password varchar(255),
@@ -177,6 +182,7 @@ app.post('/register', (req, res) => {
                 const query = `insert into ${USERS_INFO} set ?`
                 db.query(query, {
                     name: name,
+                    real_name: name,
                     phone_number: phone_number,
                     email: email,
                     password: password,
@@ -204,6 +210,7 @@ app.post('/register', (req, res) => {
         const createOwnerTableQuery = `create table if not exists ${DATABASE}.${OWNERS_INFO}(
         id int(255) not null auto_increment,
         name varchar(255),
+        real_name varchar(255),
         phone_number varchar(255),
         email varchar(255),
         password varchar(255),
@@ -224,6 +231,7 @@ app.post('/register', (req, res) => {
                 const query = `insert into ${OWNERS_INFO} set ?`
                 db.query(query, {
                     name: name,
+                    real_name: name,
                     phone_number: phone_number,
                     email: email,
                     password: password,
@@ -248,8 +256,8 @@ app.post('/register', (req, res) => {
             }
         });
     }
-
 });
+
 
 //login
 app.post('/login', (req, res) => {
@@ -359,10 +367,10 @@ app.get('/getHouse', (req, res) => {
 //book house
 app.post('/bookHouse', (req, res) => {
 
-    const userName = req.query.user_name;
+    const userName = req.query.user_name.replace(' ', '_').toLowerCase();
     const userNumber = req.query.phone_number;
     const house_id = req.query.house_id;
-    const owner_name = req.query.owner_name;
+    const owner_name = req.query.owner_name.replace(' ', '_').toLowerCase();
     const owner_number = req.query.owner_number;
     var time;
 
@@ -443,7 +451,7 @@ app.post('/bookHouse', (req, res) => {
 //show booked house
 app.get('/showBookedHouse', (req, res) => {
     const phoneNumber = req.query.phone_number;
-    const userName = req.query.name;
+    const userName = req.query.name.replace(' ', '_').toLowerCase();
 
     const query = `select * from ${phoneNumber}_${userName}_booked_table`;
     db.query(query, (error, result) => {
@@ -471,7 +479,7 @@ app.post('/leaveRoom', (req, res) => {
     var ownerNumber = '';
 
     const bookedRoomID = req.query.id;
-    const userName = req.query.user_name;
+    const userName = req.query.user_name.replace(' ', '_').toLowerCase();
     const userNumber = req.query.user_number;
 
 
@@ -503,7 +511,7 @@ app.post('/leaveRoom', (req, res) => {
                             const fee = data.fee;
                             const address = data.address;
                             const houseId = data.house_id;
-                            ownerName = data.owner_name.toLowerCase();
+                            ownerName = data.owner_name.replace(' ', '_').toLowerCase();
                             ownerNumber = data.owner_number;
                             const time = data.time;
 
@@ -614,7 +622,7 @@ app.post('/owner/addHouse', uploadHouseImages.fields([
 
             Object.keys(result).forEach((key) => {
                 const data = result[key];
-                ownerName = data.name.toLowerCase();
+                ownerName = data.name.replace(' ', '_').toLowerCase();
                 uid = data.id;
 
                 //add house into single owners
@@ -781,7 +789,7 @@ app.post('/owner/addHouse', uploadHouseImages.fields([
 
 //show owner house
 app.get('/owner/showOwnerHouse', (req, res) => {
-    const name = req.query.name;
+    const name = req.query.name.replace(' ', '_').toLowerCase();
     const ownerNumber = req.query.owner_number;
     const query = `select * from ${OWNER_TABLE}_${ownerNumber}_${name}`;
     db.query(query, (error, result) => {
@@ -803,7 +811,7 @@ app.get('/owner/showOwnerHouse', (req, res) => {
 
 //show who booked table
 app.get('/owner/showBookedHouse', (req, res) => {
-    const ownerName = req.query.owner_name;
+    const ownerName = req.query.owner_name.replace(' ', '_').toLowerCase();
     const ownerNumber = req.query.owner_number;
 
     const query = `select * from owner_${ownerNumber}_${ownerName}_booked_room_list`;
@@ -828,7 +836,7 @@ app.get('/owner/showBookedHouse', (req, res) => {
 //update house
 app.put('/owner/updateHouse', (req, res) => {
     const houseId = req.query.house_id;
-    const ownerName = req.query.owner_name;
+    const ownerName = req.query.owner_name.replace(' ', '_').toLowerCase();
     const ownerNumber = req.query.owner_number;
     const category = req.query.category;
     const fee = req.query.fee;
@@ -911,7 +919,7 @@ app.put('/owner/updateHouse', (req, res) => {
 
 //get single house
 app.get('/owner/getSingleHouse', (req, res) => {
-    const owner_name = req.query.owner_name;
+    const owner_name = req.query.owner_name.replace(' ', '_').toLowerCase();
     const owner_number = req.query.owner_number;
     const time = req.query.time;
 
@@ -935,7 +943,7 @@ app.get('/owner/getSingleHouse', (req, res) => {
 
 //get book room request
 app.get('/owner/bookRoomRequest', (req, res) => {
-    const ownerName = req.query.owner_name;
+    const ownerName = req.query.owner_name.replace(' ', '_').toLowerCase();
     const ownerNumber = req.query.owner_number;
 
     const query = `select * from room_book_request_${ownerNumber}_${ownerName}`;
@@ -963,7 +971,7 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
     var userName;
     const userNumber = req.query.phone_number;
     const time = req.query.time;
-    const owner_name = req.query.owner_name;
+    const owner_name = req.query.owner_name.replace(' ', '_').toLowerCase();
     const owner_number = req.query.owner_number;
 
     const getUseIdQuery = `select * from ${USERS_INFO} where phone_number=${userNumber}`;
@@ -1182,7 +1190,7 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
 
 //get leave request
 app.get('/owner/leaveRoomRequests', (req, res) => {
-    const ownerName = req.query.owner_name;
+    const ownerName = req.query.owner_name.replace(' ', '_').toLowerCase();
     const ownerNumber = req.query.owner_number;
 
     const getRequest = `select * from leave_request_list_${ownerNumber}_${ownerName}`;
@@ -1209,9 +1217,9 @@ app.get('/owner/leaveRoomRequests', (req, res) => {
 app.delete('/owner/approveLeaveRoomRequest', (req, res) => {
     const requestId = req.query.request_id;
     const houseID = req.query.house_id;
-    const userName = req.query.user_name;
+    const userName = req.query.user_name.replace(' ', '_').toLowerCase();
     const userNumber = req.query.user_number;
-    const ownerName = req.query.owner_name;
+    const ownerName = req.query.owner_name.replace(' ', '_').toLowerCase();
     const ownerNumber = req.query.owner_number;
     const time = req.query.time;
 
@@ -1305,7 +1313,6 @@ app.get('/profile', (req, res) => {
 });
 
 
-
 //update profile pic
 app.put('/updateProfilePic', uploadProfilePic.single('profileImage'), (req, res) => {
 
@@ -1323,7 +1330,8 @@ app.put('/updateProfilePic', uploadProfilePic.single('profileImage'), (req, res)
         } else {
             Object.keys(result).forEach(async (key) => {
                 var data = result[key];
-                var name = data.name;
+                var name = data.name.replace(' ', '_').toLowerCase();
+                var realName = data.real_name;
                 var phoneNumber = data.phone_number;
                 var email = data.email;
                 var password = data.password;
@@ -1332,6 +1340,7 @@ app.put('/updateProfilePic', uploadProfilePic.single('profileImage'), (req, res)
                 const updateProfileQuery = `update ${ALL_INFO} set ? where phone_number = ${phoneNumber}`;
                 db.query(updateProfileQuery, {
                     name: name,
+                    real_name: realName,
                     phone_number: phoneNumber,
                     email: email,
                     password: password,
@@ -1349,6 +1358,7 @@ app.put('/updateProfilePic', uploadProfilePic.single('profileImage'), (req, res)
                             const updateUserProfileQuery = `update ${USERS_INFO} set ? where phone_number = ${phoneNumber}`;
                             db.query(updateUserProfileQuery, {
                                 name: name,
+                                real_name: realName,
                                 phone_number: phoneNumber,
                                 email: email,
                                 password: password,
@@ -1368,6 +1378,7 @@ app.put('/updateProfilePic', uploadProfilePic.single('profileImage'), (req, res)
                             const updateUserProfileQuery = `update ${OWNERS_INFO} set ? where phone_number = ${phoneNumber}`;
                             db.query(updateUserProfileQuery, {
                                 name: name,
+                                real_name: realName,
                                 phone_number: phoneNumber,
                                 email: email,
                                 password: password,
@@ -1396,93 +1407,40 @@ app.put('/updateProfilePic', uploadProfilePic.single('profileImage'), (req, res)
 });
 
 
-
-//change password
-app.put('/changePassword', (req, res) => {
-    const phoneNumber = req.query.phone_number;
-    const salt = bcrypt.genSaltSync(10)
-    var checkPassword = req.query.password;
-    var newPass = req.query.new_password;
-    var newPassword = '';
-
-    if (newPass == '') {
-        newPassword = bcrypt.hashSync(req.query.password, salt);
-    } else {
-        newPassword = bcrypt.hashSync(req.query.new_password, salt);
-    }
-
-    const query = `SELECT * FROM ${ALL_INFO} WHERE phone_number=${phoneNumber}`;
-    db.query(query, (error, result) => {
-        if (error) {
-            console.log(error);
-            res.json({
-                status: 'fail',
-                message: 'invalid user',
-            });
-        } else {
-            Object.keys(result).forEach(async (key) => {
-                var data = result[key];
-                var name = data.name;
-                var phoneNumber = data.phone_number;
-                var email = data.email;
-                var password = data.password;
-                var upRole = data.role;
-
-                var match = await bcrypt.compare(checkPassword, password);
-                if (match) {
-                    console.log(password);
-                    console.log(newPassword);
-                    const updateProfileQuery = `update ${ALL_INFO} set password = "${newPassword}" where phone_number = ${phoneNumber}`;
-                    db.query(updateProfileQuery, (error) => {
-                        if (error) {
-                            console.log(error);
-                            res.json({
-                                status: 'fail',
-                                message: 'fail to change password',
-                            });
-                        } else {
-                            if (upRole == 'user') {
-                                const updateUserProfileQuery = `update ${USERS_INFO} set password = "${newPassword}" where phone_number = ${phoneNumber}`;
-                                db.query(updateUserProfileQuery, (error) => {
-                                    if (error) {
-                                        console.log(error);
-                                        res.json({
-                                            status: 'fail',
-                                            message: 'fail to change user password',
-                                        });
-                                    }
-                                });
-                            } else if (upRole == 'owner') {
-
-                                const updateUserProfileQuery = `update ${OWNERS_INFO} set password = "${newPassword}" where phone_number = ${phoneNumber}`;
-                                db.query(updateUserProfileQuery, (error) => {
-                                    if (error) {
-                                        console.log(error);
-                                        res.json({
-                                            status: 'fail',
-                                            message: 'fail to change owner password',
-                                        });
-                                    }
-                                });
-                            }
-                            res.status(200).json({
-                                status: 'success',
-                                message: 'password changed'
-                            });
-                        }
-                    });
-                } else {
-                    res.json({
-                        status: 'fail',
-                        message: 'password did not match'
-                    });
-                }
-            });
-        }
-    });
+//-------------------------------------------admin------------------------------------
+app.delete('/deleteUser', (req, res) => {
+    deleteUser(req, res);
 });
 
+async function deleteUser(req, res) {
+    const phone_number = req.query.number;
+    const role = req.query.role;
+    try {
+        await db.beginTransaction();
 
+        await db.query(`DELETE FROM ${ALL_INFO} WHERE phone_number = ?`, [phone_number]);
+        if (role == 'user') {
+            await db.query(`DELETE FROM ${USERS_INFO} WHERE phone_number = ?`, [phone_number]);
+
+        } else if (role == 'owner') {
+            await db.query(`DELETE FROM ${OWNERS_INFO} WHERE phone_number = ?`, [phone_number]);
+        }
+        await db.commit();
+
+        console.log('data deleted');
+        res.json({
+            status: 'success',
+            message: 'data has been deleted'
+        });
+
+    } catch (error) {
+        console.log(error);
+        res.json({
+            status: 'fail',
+            message: 'fail to delete data',
+        })
+    }
+}
 
 
 //listen port
