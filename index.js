@@ -130,7 +130,7 @@ app.post('/register', (req, res) => {
             //insert into database
             const query = `insert into ${ALL_INFO} set ?`
             db.query(query, {
-                name: name,
+                name: name.replace(' ', '_').toLowerCase(),
                 real_name: name,
                 phone_number: phone_number,
                 email: email,
@@ -181,7 +181,7 @@ app.post('/register', (req, res) => {
                 //insert into database
                 const query = `insert into ${USERS_INFO} set ?`
                 db.query(query, {
-                    name: name,
+                    name: name.replace(' ', '_').toLowerCase(),
                     real_name: name,
                     phone_number: phone_number,
                     email: email,
@@ -230,7 +230,7 @@ app.post('/register', (req, res) => {
                 //insert into database
                 const query = `insert into ${OWNERS_INFO} set ?`
                 db.query(query, {
-                    name: name,
+                    name: name.replace(' ', '_').toLowerCase(),
                     real_name: name,
                     phone_number: phone_number,
                     email: email,
