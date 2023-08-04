@@ -305,7 +305,7 @@ app.post('/login', (req, res) => {
                                     });
                                 }
                             });
-                        } else if (role == 'owner') {
+                        } else if (role == 'owner' || role == 'admin') {
 
                             const updateDeviceTokenQueryOwner = `update ${DATABASE}.${OWNERS_INFO} set device_token = "${deviceToken}" where phone_number = ${sqlPhone}`;
                             db.query(updateDeviceTokenQueryOwner, (error) => {
@@ -590,6 +590,7 @@ app.post('/owner/addHouse', uploadHouseImages.fields([
     let videoLink;
 
     const ownerNumber = req.query.owner_number;
+    const otherNumber = req.query.other_number;
     const ownerName = req.query.owner_name.replace(' ', '_').toString();
     const realName = req.query.real_name.toString();
     const category = req.query.category;
@@ -629,6 +630,7 @@ app.post('/owner/addHouse', uploadHouseImages.fields([
         owner_name varchar(255),
         real_name varchar(255),
         owner_number varchar(255),
+        other_number varchar(255),
         owner_id int(255),
         image1 varchar(255),
         image2 varchar(255),
@@ -663,6 +665,7 @@ app.post('/owner/addHouse', uploadHouseImages.fields([
                             owner_name: ownerName,
                             real_name: realName,
                             owner_number: ownerNumber,
+                            other_number: otherNumber,
                             owner_id: uid,
                             image1: image1,
                             image2: image2,
@@ -708,6 +711,7 @@ app.post('/owner/addHouse', uploadHouseImages.fields([
         real_name varchar(255),
         owner_id int(255),
         owner_number varchar(255),
+        other_number varchar(255),
         image1 varchar(255),
         image2 varchar(255),
         image3 varchar(255),
@@ -742,6 +746,7 @@ app.post('/owner/addHouse', uploadHouseImages.fields([
                                                         real_name: realName,
                                                         owner_id: uid,
                                                         owner_number: ownerNumber,
+                                                        other_number: otherNumber,
                                                         image1: image1,
                                                         image2: image2,
                                                         image3: image3,
@@ -839,7 +844,9 @@ app.get('/owner/showBookedHouse', (req, res) => {
 app.put('/owner/updateHouse', (req, res) => {
     const houseId = req.query.house_id;
     const ownerName = req.query.owner_name.replace(' ', '_').toLowerCase();
+    const ownerRealName = req.query.owner_real_name;
     const ownerNumber = req.query.owner_number;
+    const otherNumber = req.query.other_number;
     const category = req.query.category;
     const fee = req.query.fee;
     const quantity = req.query.quantity;
@@ -867,6 +874,8 @@ app.put('/owner/updateHouse', (req, res) => {
                 const updateHouseSingle = `update ${OWNER_TABLE}_${ownerNumber}_${ownerName} set? where id=${houseId}`;
                 db.query(updateHouseSingle, {
                     category: category,
+                    real_name: ownerRealName,
+                    other_number: otherNumber,
                     fee: fee,
                     quantity: quantity,
                     advance_fee: advanceFee,
@@ -887,6 +896,8 @@ app.put('/owner/updateHouse', (req, res) => {
                     } else {
                         const updateHouse = `update ${OWNER_TABLE} set? where time=${time}`;
                         db.query(updateHouse, {
+                            real_name: ownerRealName,
+                            other_number: otherNumber,
                             category: category,
                             fee: fee,
                             quantity: quantity,
@@ -976,6 +987,7 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
     const time = req.query.time;
     const owner_name = req.query.owner_name.replace(' ', '_').toLowerCase();
     const owner_number = req.query.owner_number;
+    var otherNumber;
 
     const getUseIdQuery = `select * from ${USERS_INFO} where phone_number=${userNumber}`;
     db.query(getUseIdQuery, (error, result) => {
@@ -1005,6 +1017,7 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
                             const data = result[key];
                             const owner_id = data.owner_id;
                             const ownerRealName = data.real_name;
+                            otherNumber = data.other_number;
                             const category = data.category;
                             const fee = data.fee;
                             const quantity = data.quantity;
@@ -1039,6 +1052,7 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
                                             const createBookTableQuery = `create table if not exists ${userNumber}_${userName}_booked_table(
                                                  id int(255) not null auto_increment primary key,
                                                  owner_name varchar (255),
+                                                 other_number varchar (255),
                                                  owner_real_name varchar (255),
                                                  owner_number varchar (255),
                                                  owner_id int(255),
@@ -1072,6 +1086,7 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
                                                     const bookRoomQuery = `insert into ${userNumber}_${userName}_booked_table set?`;
                                                     db.query(bookRoomQuery, {
                                                         'owner_name': owner_name,
+                                                        'other_number': otherNumber,
                                                         'owner_real_name': ownerRealName,
                                                         'owner_number': owner_number,
                                                         'owner_id': owner_id,
@@ -1106,6 +1121,7 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
                                                                 owner_name varchar (255),
                                                                 owner_real_name varchar (255),
                                                                 owner_number varchar (255),
+                                                                other_number varchar (255),
                                                                 owner_id int(255),
                                                                 house_id int(255),
                                                                 user_id int (255),
@@ -1139,6 +1155,7 @@ app.post('/owner/approveBookRoomRequest', (req, res) => {
                                                                         'owner_name': owner_name,
                                                                         'owner_real_name': ownerRealName,
                                                                         'owner_number': owner_number,
+                                                                        'other_number': otherNumber,
                                                                         'owner_id': owner_id,
                                                                         'house_id': house_id,
                                                                         'user_id': uid,
